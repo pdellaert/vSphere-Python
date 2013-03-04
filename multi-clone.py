@@ -18,16 +18,16 @@ def find_vm(name):
 def find_resource_pool(name):
 	rps = con.get_resource_pools()
 	for mor, path in rps.iteritems():
-		print_verbose('Parsing RP '+path)
-		if re.match('.*'+name,path):
+		print_verbose('Parsing RP %s' % path)
+		if re.match('.*%s' % name,path):
 			return mor
 	return None
 
 def run_post_script(name,ip):
-	print_verbose('Running post script: '+post_script+' '+name+' '+ip)
+	print_verbose('Running post script: %s %s %s' % (post_script,name,ip))
 	retcode = subprocess.call([post_script,name,ip])
 	if retcode < 0:
-		print 'ERROR: '+post_script+' '+name+' '+ip+' : Returned a non-zero result'
+		print 'ERROR: %s %s %s : Returned a non-zero result' % (post_script,name,ip)
 		sys.exit(1)
 
 def find_ip(vm,ipv6=False):
@@ -38,10 +38,10 @@ def find_ip(vm,ipv6=False):
 		sleep(5)
 	for ip in net_info[0]['ip_addresses']:
 		if ipv6 and re.match('\d{1,4}\:.*',ip) and not re.match('fe83\:.*',ip):
-			print_verbose('IPv6 address found: '+ip)
+			print_verbose('IPv6 address found: %s' % ip)
 			return ip
 		elif not ipv6 and re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',ip) and ip != '127.0.0.1':
-			print_verbose('IPv4 address found: '+ip)
+			print_verbose('IPv4 address found: %s' % ip)
 			return ip
 	print_verbose('No IP address found')
 	return None
@@ -82,40 +82,40 @@ password=getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % 
 print_verbose('Connecting to server %s with username %s' % (server,username))
 con = VIServer()
 con.connect(server,username,password)
-print_verbose('Connected to server'+server)
-print_verbose('Server type: '+con.get_server_type())
-print_verbose('API version: '+con.get_api_version())
+print_verbose('Connected to server %s' % server)
+print_verbose('Server type: %s' % con.get_server_type())
+print_verbose('API version: %s' % con.get_api_version())
 
 # Verify the template exists
-print_verbose('Finding template '+template)
+print_verbose('Finding template %s' % template)
 template_vm = find_vm(template)
 if template_vm is None:
-	print 'ERROR: '+template+' not found'
+	print 'ERROR: %s not found' % template
 	sys.exit(1)
-print_verbose('Template '+template+' found')
+print_verbose('Template %s found' % template)
 
 # Verify the target Resource Pool exists
-print_verbose('Finding resource pool '+resource_pool)
+print_verbose('Finding resource pool %s' % resource_pool)
 resource_pool_mor = find_resource_pool(resource_pool)
 if resource_pool_mor is None:
-	print 'ERROR: '+resource_pool+' not found'
+	print 'ERROR: %s not found' % resource_pool
 	sys.exit(1)
-print_verbose('Resource pool '+resource_pool+' found')
+print_verbose('Resource pool %s found' % resource_pool)
 
 # Dictionary with name->IP elements for post script processing
 vms_to_ps = {}
 # Looping through amount that needs to be created
 for a in range(1,amount+1):
 	print_verbose('================================================================================')
-	vm_name = basename+'-'+str(count)
-	print_verbose('Trying to clone '+template+' to VM '+vm_name)
+	vm_name = '%s-%i' % (basename,count)
+	print_verbose('Trying to clone %s to VM %s' % (template,vm_name))
 	if find_vm(vm_name):
-		print 'ERROR: '+vm_name+' already exists'
+		print 'ERROR: %s already exists' % vm_name
 	else:
 		clone = template_vm.clone(vm_name, True, None, resource_pool_mor, None, None, False)
-		print_verbose('VM '+vm_name+' created')
+		print_verbose('VM %s created' % vm_name)
 		
-		print_verbose('Booting VM '+vm_name)
+		print_verbose('Booting VM %s' % vm_name)
 		clone.power_on()
 		
 		if post_script:
