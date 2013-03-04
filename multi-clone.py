@@ -79,7 +79,7 @@ verbose		= args.verbose
 password=getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (server,username))
 
 # Connecting to server
-print_verbose('Connecting to server %s with username %s', (server,username))
+print_verbose('Connecting to server %s with username %s' % (server,username))
 con = VIServer()
 con.connect(server,username,password)
 print_verbose('Connected to server'+server)
