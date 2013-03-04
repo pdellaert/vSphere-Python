@@ -62,7 +62,7 @@ parser.add_argument('-s', '--server', nargs=1, required=True, help='The vCenter 
 parser.add_argument('-t', '--template', nargs=1, required=True, help='Template to deploy', dest='template', type=str)
 parser.add_argument('-u', '--user', nargs=1, required=True, help='The username with which to connect to the server', dest='username', type=str)
 parser.add_argument('-v', '--verbose', required=False, help='Enable verbose output', dest='verbose', action='store_true')
-parser.add_argument('-w', '--wait-max', required=False, help='Maximum amount of seconds to wait when gathering information (default 120)', dest='maxwait', type=int, default=[120])
+parser.add_argument('-w', '--wait-max', nargs=1, required=False, help='Maximum amount of seconds to wait when gathering information (default 120)', dest='maxwait', type=int, default=[120])
 
 args = parser.parse_args()
 
