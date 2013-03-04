@@ -32,18 +32,23 @@ def run_post_script(name,ip):
 
 def find_ip(vm,ipv6=False):
 	net_info = None
+	waitcount = 0
 	while net_info is None:
+		if waitcount > timeout:
+			break
 		net_info = vm.get_property('net',False)
 		print_verbose('Waiting 5 seconds ...')
+		waitcount += 5
 		sleep(5)
-	for ip in net_info[0]['ip_addresses']:
-		if ipv6 and re.match('\d{1,4}\:.*',ip) and not re.match('fe83\:.*',ip):
-			print_verbose('IPv6 address found: %s' % ip)
-			return ip
-		elif not ipv6 and re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',ip) and ip != '127.0.0.1':
-			print_verbose('IPv4 address found: %s' % ip)
-			return ip
-	print_verbose('No IP address found')
+	if net_info:
+		for ip in net_info[0]['ip_addresses']:
+			if ipv6 and re.match('\d{1,4}\:.*',ip) and not re.match('fe83\:.*',ip):
+				print_verbose('IPv6 address found: %s' % ip)
+				return ip
+			elif not ipv6 and re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',ip) and ip != '127.0.0.1':
+				print_verbose('IPv4 address found: %s' % ip)
+				return ip
+	print_verbose('Timeout expired: No IP address found')
 	return None
 
 parser = argparse.ArgumentParser(description="Deploy a template into multiple VM's")
@@ -57,6 +62,7 @@ parser.add_argument('-s', '--server', nargs=1, required=True, help='The vCenter 
 parser.add_argument('-t', '--template', nargs=1, required=True, help='Template to deploy', dest='template', type=str)
 parser.add_argument('-u', '--user', nargs=1, required=True, help='The username with which to connect to the server', dest='username', type=str)
 parser.add_argument('-v', '--verbose', required=False, help='Enable verbose output', dest='verbose', action='store_true')
+parser.add_argument('-w', '--wait-max', required=False, help='Maximum amount of seconds to wait when gathering information (default 120)', dest='timeout', type=int, default=120)
 
 args = parser.parse_args()
 
@@ -74,6 +80,7 @@ server 		= args.server[0]
 template 	= args.template[0]
 username 	= args.username[0]
 verbose		= args.verbose
+timeout 	= args.timeout[0]
 
 # Asking Users password for server
 password=getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (server,username))
@@ -102,8 +109,8 @@ if resource_pool_mor is None:
 	sys.exit(1)
 print_verbose('Resource pool %s found' % resource_pool)
 
-# Dictionary with name->IP elements for post script processing
-vms_to_ps = {}
+# List with VM name elements for post script processing
+vms_to_ps = []
 # Looping through amount that needs to be created
 for a in range(1,amount+1):
 	print_verbose('================================================================================')
@@ -119,15 +126,21 @@ for a in range(1,amount+1):
 		clone.power_on()
 		
 		if post_script:
-			ip = find_ip(clone,ipv6)
-			if ip:
-				vms_to_ps[vm_name] = ip
+			vms_to_ps.append(vm_name)
 	count += 1
 
 # Looping through post scripting if necessary
 if post_script:
-	for name in sorted(vms_to_ps.iterkeys()):
-		run_post_script(name,vms_to_ps[name])
+	for name in vms_to_ps:
+			vm = find_vm(name)
+			if vm:
+				ip = find_ip(vm,ipv6)
+				if ip:
+					run_post_script(name,ip)
+				else: 
+					print 'ERROR: No IP found for VM %s, post processing disabled' % name
+			else:
+				print 'ERROR: VM %s not found, post processing disabled' % name
 
 # Disconnecting from server
 con.disconnect()
