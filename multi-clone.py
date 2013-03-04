@@ -34,7 +34,7 @@ def find_ip(vm,ipv6=False):
 	net_info = None
 	waitcount = 0
 	while net_info is None:
-		if waitcount > timeout:
+		if waitcount > maxwait:
 			break
 		net_info = vm.get_property('net',False)
 		print_verbose('Waiting 5 seconds ...')
@@ -62,7 +62,7 @@ parser.add_argument('-s', '--server', nargs=1, required=True, help='The vCenter 
 parser.add_argument('-t', '--template', nargs=1, required=True, help='Template to deploy', dest='template', type=str)
 parser.add_argument('-u', '--user', nargs=1, required=True, help='The username with which to connect to the server', dest='username', type=str)
 parser.add_argument('-v', '--verbose', required=False, help='Enable verbose output', dest='verbose', action='store_true')
-parser.add_argument('-w', '--wait-max', required=False, help='Maximum amount of seconds to wait when gathering information (default 120)', dest='timeout', type=int, default=120)
+parser.add_argument('-w', '--wait-max', required=False, help='Maximum amount of seconds to wait when gathering information (default 120)', dest='maxwait', type=int, default=120)
 
 args = parser.parse_args()
 
@@ -80,7 +80,7 @@ server 		= args.server[0]
 template 	= args.template[0]
 username 	= args.username[0]
 verbose		= args.verbose
-timeout 	= args.timeout[0]
+maxwait 	= args.maxwait[0]
 
 # Asking Users password for server
 password=getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (server,username))
