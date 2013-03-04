@@ -76,10 +76,10 @@ username 	= args.username[0]
 verbose		= args.verbose
 
 # Asking Users password for server
-password=getpass.getpass(prompt='Enter password for vCenter '+server+' for user '+username+': ')
+password=getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (server,username))
 
 # Connecting to server
-print_verbose('Connecting to server '+server+' with username '+username)
+print_verbose('Connecting to server %s with username %s', (server,username))
 con = VIServer()
 con.connect(server,username,password)
 print_verbose('Connected to server'+server)
