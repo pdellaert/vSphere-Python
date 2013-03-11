@@ -31,7 +31,7 @@ def run_post_script(name,ip):
 		sys.exit(1)
 
 def find_ip(vm,ipv6=False):
-	net_info = None
+	net_info = vm.get_property('net',False)
 	waitcount = 0
 	while net_info is None:
 		if waitcount > maxwait:
