@@ -16,7 +16,7 @@ This script can be used to deploy multiple VMs from a template in an automatic w
 ### Requirements ###
 1. [PySphere 0.1.8+](https://code.google.com/p/pysphere/)
 2. vCenter 5+ (tested with 5.1, 5.1u & 5.5)
-3. If you only want to deploy templates without post processing: A user with a role with at least the following permission over the complete vCenter server:
+3. A user with a role with at least the following permission over the complete vCenter server:
     * Datastore 
         * Allocate space
     * Network
