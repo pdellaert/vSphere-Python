@@ -24,7 +24,7 @@ https://github.com/pdellaert/vSphere-Python/blob/master/docs/multi-clone.md
 Philippe Dellaert <philippe@dellaert.org>
 
 --- License ---
-https://github.com/pdellaert/vSphere-Python/blob/master/LICENSE.md
+https://raw.github.com/pdellaert/vSphere-Python/master/LICENSE.md
 
 """
 
