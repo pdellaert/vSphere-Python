@@ -16,6 +16,16 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 
 --- Usage ---
 Run 'multi-clone.py -h' for an overview
+
+--- Documentation ---
+https://github.com/pdellaert/vSphere-Python/blob/master/docs/multi-clone.md
+
+--- Author ---
+Philippe Dellaert <philippe@dellaert.org>
+
+--- License ---
+https://github.com/pdellaert/vSphere-Python/blob/master/LICENSE.md
+
 """
 
 import argparse
