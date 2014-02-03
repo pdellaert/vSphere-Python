@@ -2,7 +2,7 @@ multi-clone.py
 ==============
 An extension and improvement on the earlier released pysphere-multi-clone.py script using the pyVmomi library of VMware. The scripts provide extended capabilities to clone a virtual machine or template to one or more virtual machines in a parallel (threaded) way. 
 
-It allows you to specify the ability to print out the mac address of the main nic, the ip address or both. The format will be '<virtual machine name> [mac] [ip]'.
+It allows you to specify the ability to print out the mac address of the main nic, the ip address or both. The format will be '[virtual machine name] [mac] [ip]'.
 
 The same information can be given to a post-process script. If no mac and/or ip information is available, it will only get the virtual machine name as argument.
 
