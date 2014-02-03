@@ -7,13 +7,13 @@ Collection of Python vSphere scripts
 multi-clone is a Python script which allows you to clone a virtual machine or virtual machine template into multiple new virtual machines in a VMware vSphere environment. 
 
 This script has the following capabilities:
-    * Deploy a specified amount of virtual machines
-    * Deploy in a specified folder
-    * Deploy in a specified resource pool
-    * Print out information of the main network interface (mac and ip, either IPv4 or IPv6)
-    * Run a post-processing script with 3 parameters (virtual machine name, mac and ip)
-    * Print logging to a log file or stdout
-    * Do this in a threaded way
+* Deploy a specified amount of virtual machines
+* Deploy in a specified folder
+* Deploy in a specified resource pool
+* Print out information of the main network interface (mac and ip, either IPv4 or IPv6)
+* Run a post-processing script with 3 parameters (virtual machine name, mac and ip)
+* Print logging to a log file or stdout
+* Do this in a threaded way
 
 Check [the multi-clone.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/multi-clone.md) for more information on the options and capabilities.
 
