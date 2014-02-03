@@ -55,36 +55,39 @@ Check the Usage chapter for more information on the options and capabilities.
       -c COUNT, --count COUNT
                             Starting count, the name of the first VM deployed will
                             be <basename>-<count>, the second will be
-                            <basename>-<count+1> (default=1)
+                            <basename>-<count+1> (default = 1)
       -d, --debug           Enable debug output
       -f FOLDER, --folder FOLDER
-                            The folder in which the new VMs should reside
+                            The folder in which the new VMs should reside (default
+                            = same folder as source virtual machine)
       -H HOST, --host HOST  The vCenter or ESXi host to connect to
       -i, --print-ips       Enable IP output
       -m, --print-macs      Enable MAC output
       -l LOGFILE, --log-file LOGFILE
-                            File to log to, if not specified, stdout is used
+                            File to log to (default = stdout)
       -n AMOUNT, --number AMOUNT
-                            Amount of VMs to deploy (default=1)
-      -o PORT, --port PORT  Server port to connect to
+                            Amount of VMs to deploy (default = 1)
+      -o PORT, --port PORT  Server port to connect to (default = 443)
       -p PASSWORD, --password PASSWORD
-                            The password with which to connect to the host
+                            The password with which to connect to the host. If not
+                            specified, the user is prompted at runtime for a
+                            password
       -P, --disable-power-on
                             Disable power on of cloned VMs
       -r RESOURCE_POOL, --resource-pool RESOURCE_POOL
                             The resource pool in which the new VMs should reside,
-                            (default=Resources , the root resource pool
+                            (default = Resources, the root resource pool)
       -s POST_SCRIPT, --post-script POST_SCRIPT
                             Script to be called after each VM is created and
-                            booted. Arguments passed: name ip-address
+                            booted. Arguments passed: name mac-address ip-address
       -t TEMPLATE, --template TEMPLATE
                             Template to deploy
       -T THREADS, --threads THREADS
-                            Amount of threads to use (default=amount of cores in
+                            Amount of threads to use (default = amount of cores in
                             your environment)
       -u USERNAME, --user USERNAME
                             The username with which to connect to the host
       -v, --verbose         Enable verbose output
       -w MAXWAIT, --wait-max MAXWAIT
                             Maximum amount of seconds to wait when gathering
-                            information (default 120)
+                            information (default = 120)
