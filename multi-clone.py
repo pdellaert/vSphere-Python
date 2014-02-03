@@ -317,7 +317,7 @@ def main():
     try:
         si = None
         try:
-            logger.info('Connecting to server')
+            logger.info('Connecting to server %s:%s with username %s' % (host,port,username))
             si = SmartConnect(host=host,user=username,pwd=password,port=int(port))
         except IOError, e:
             pass
