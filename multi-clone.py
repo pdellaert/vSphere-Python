@@ -1,5 +1,21 @@
 """
-Python script to clone a VM or template into multiple VMs with the posibility of post-processing
+multi-clone is a Python script which allows you to clone a virtual machine or virtual machine template into multiple new virtual machines in a VMware vSphere environment. 
+
+This script has the following capabilities:
+    * Deploy a specified amount of virtual machines
+    * Deploy in a specified folder
+    * Deploy in a specified resource pool
+    * Print out information of the main network interface (mac and ip, either IPv4 or IPv6)
+    * Run a post-processing script with 3 parameters (virtual machine name, mac and ip)
+    * Do this in a threaded way
+
+--- Using threads ---
+Deciding on the optimal amount of threads might need a bit of experimentation. Keep certain things in mind:
+    * The optimal amount of threads depends on the IOPS of the datastore as each thread will start a template deployment task, which in turn starts copying the disks.
+    * vCenter will, by default, only run 8 deployment tasks simultaniously while other tasks are queued, so setting the amount of threads to more than 8, is not really usefull.
+
+--- Usage ---
+Run 'multi-clone.py -h' for an overview
 """
 
 import argparse
@@ -38,7 +54,7 @@ def get_args():
     parser.add_argument('-r', '--resource-pool', nargs=1, required=False, help='The resource pool in which the new VMs should reside, (default = Resources, the root resource pool)', dest='resource_pool', type=str, default=['Resources'])
     parser.add_argument('-s', '--post-script', nargs=1, required=False, help='Script to be called after each VM is created and booted. Arguments passed: name mac-address ip-address', dest='post_script', type=str)
     parser.add_argument('-t', '--template', nargs=1, required=True, help='Template to deploy', dest='template', type=str)
-    parser.add_argument('-T', '--threads', nargs=1, required=False, help='Amount of threads to use (default = amount of cores in your environment)', dest='threads', type=int, default=[0])
+    parser.add_argument('-T', '--threads', nargs=1, required=False, help='Amount of threads to use. Choose the amount of threads with the speed of your datastore in mind, each thread starts the creation of a virtual machine. (default = 1)', dest='threads', type=int, default=[1])
     parser.add_argument('-u', '--user', nargs=1, required=True, help='The username with which to connect to the host', dest='username', type=str)
     parser.add_argument('-v', '--verbose', required=False, help='Enable verbose output', dest='verbose', action='store_true')
     parser.add_argument('-w', '--wait-max', nargs=1, required=False, help='Maximum amount of seconds to wait when gathering information (default = 120)', dest='maxwait', type=int, default=[120])
@@ -288,9 +304,7 @@ def main():
     if args.resource_pool:
         resource_pool_name = args.resource_pool[0]
     template    = args.template[0]
-    threads     = 0
-    if args.threads:
-        threads = args.threads[0]
+    threads     = args.threads[0]
     username    = args.username[0]
     verbose     = args.verbose
     maxwait     = args.maxwait[0]
@@ -373,13 +387,8 @@ def main():
 
         # Pool handling
         logger.debug('Setting up pools and threads')
-        if threads > 0:
-            pool = ThreadPool(threads)
-            mac_ip_pool = ThreadPool(threads)
-        else:
-            pool = ThreadPool()
-            mac_ip_pool = ThreadPool()
-            threads = multiprocessing.cpu_count()
+        pool = ThreadPool(threads)
+        mac_ip_pool = ThreadPool(threads)
         mac_ip_pool_results = []
         logger.debug('Pools created with %s threads' % threads)
 

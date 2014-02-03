@@ -1,37 +1,20 @@
 multi-clone.py
 ==============
-An extension and improvement on the earlier released pysphere-multi-clone.py script using the pyVmomi library of VMware. The scripts provide extended capabilities to clone a virtual machine or template to one or more virtual machines in a parallel (threaded) way. 
+multi-clone is a Python script which allows you to clone a virtual machine or virtual machine template into multiple new virtual machines in a VMware vSphere environment. 
 
-It allows you to specify the ability to print out the mac address of the main nic, the ip address or both. The format will be '[virtual machine name] [mac] [ip]'.
+This script has the following capabilities:
+    * Deploy a specified amount of virtual machines
+    * Deploy in a specified folder
+    * Deploy in a specified resource pool
+    * Print out information of the main network interface (mac and ip, either IPv4 or IPv6)
+    * Run a post-processing script with 3 parameters (virtual machine name, mac and ip)
+    * Print logging to a log file or stdout
+    * Do this in a threaded way
 
-The same information can be given to a post-process script. If no mac and/or ip information is available, it will only get the virtual machine name as argument.
-
-Check the Usage chapter for more information on the options and capabilities.
-
-### Requirements ### 
-1. [pyVmomi](https://github.com/vmware/pyvmomi)
-2. vCenter 5+ (tested with 5.1, 5.1u & 5.5)
-3. A user with a role with at least the following permission over the complete vCenter server:
-    * Datastore 
-        * Allocate space
-    * Network
-        * Assign Network
-    * Resource
-        * Apply recommendation
-        * Assign virtual machine to resource pool
-    * Scheduled task
-        * Create tasks
-        * Run task
-    * Virtual Machine
-        * Configuration
-            * Add new disk
-        * Interaction
-            * Power on
-        * Inventory
-            * Create from existing
-        * Provisioning
-            * Clone virtual machine
-            * Deploy from template
+### Using threads ###
+Deciding on the optimal amount of threads might need a bit of experimentation. Keep certain things in mind:
+    * The optimal amount of threads depends on the IOPS of the datastore as each thread will start a template deployment task, which in turn starts copying the disks.
+    * vCenter will, by default, only run 8 deployment tasks simultaniously while other tasks are queued, so setting the amount of threads to more than 8, is not really usefull.
 
 ### Usage ###
     usage: multi-clone.py [-h] [-6] -b BASENAME [-c COUNT] [-d] [-f FOLDER] -H
@@ -83,11 +66,41 @@ Check the Usage chapter for more information on the options and capabilities.
       -t TEMPLATE, --template TEMPLATE
                             Template to deploy
       -T THREADS, --threads THREADS
-                            Amount of threads to use (default = amount of cores in
-                            your environment)
+                            Amount of threads to use. Choose the amount of threads
+                            with the speed of your datastore in mind, each thread
+                            starts the creation of a virtual machine. (default =
+                            1)
       -u USERNAME, --user USERNAME
                             The username with which to connect to the host
       -v, --verbose         Enable verbose output
       -w MAXWAIT, --wait-max MAXWAIT
                             Maximum amount of seconds to wait when gathering
                             information (default = 120)
+
+### Issues and feature requests
+Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere-Python/issues) of the repository to post issues and feature requests
+
+### Requirements ### 
+1. [pyVmomi](https://github.com/vmware/pyvmomi)
+2. vCenter 5+ (tested with 5.1, 5.1u & 5.5)
+3. A user with a role with at least the following permission over the complete vCenter server:
+    * Datastore 
+        * Allocate space
+    * Network
+        * Assign Network
+    * Resource
+        * Apply recommendation
+        * Assign virtual machine to resource pool
+    * Scheduled task
+        * Create tasks
+        * Run task
+    * Virtual Machine
+        * Configuration
+            * Add new disk
+        * Interaction
+            * Power on
+        * Inventory
+            * Create from existing
+        * Provisioning
+            * Clone virtual machine
+            * Deploy from template
