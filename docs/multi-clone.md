@@ -85,22 +85,22 @@ Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere
 2. vCenter 5+ (tested with 5.1, 5.1u & 5.5)
 3. A user with a role with at least the following permission over the complete vCenter server:
   * Datastore 
-      * Allocate space
+    * Allocate space
   * Network
-      * Assign Network
+    * Assign Network
   * Resource
-      * Apply recommendation
-      * Assign virtual machine to resource pool
+    * Apply recommendation
+    * Assign virtual machine to resource pool
   * Scheduled task
-      * Create tasks
-      * Run task
+    * Create tasks
+    * Run task
   * Virtual Machine
-      * Configuration
-          * Add new disk
-      * Interaction
-          * Power on
-      * Inventory
-          * Create from existing
-      * Provisioning
-          * Clone virtual machine
-          * Deploy from template
+    * Configuration
+      * Add new disk
+    * Interaction
+      * Power on
+    * Inventory
+      * Create from existing
+    * Provisioning
+      * Clone virtual machine
+      * Deploy from template
