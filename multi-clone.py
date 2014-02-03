@@ -173,7 +173,14 @@ def run_post_script(logger,post_script,vm,mac_ip):
         logger.debug('Received return code %s for command: %s %s' % (retcode,post_script,vm.config.name))
     return retcode
 
-def vm_clone_handler(si,logger,vm_name,clone_spec,folder,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm):
+def vm_clone_handler_wrapper(args):
+    """
+    Wrapping arround vm_clone_handler
+    """
+
+    return vm_clone_handler(*args)
+
+def vm_clone_handler(si,logger,vm_name,clone_spec,folder,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results):
     """
     Will handle the thread handling to clone a virtual machine and run post processing
     """
@@ -214,7 +221,13 @@ def vm_clone_handler(si,logger,vm_name,clone_spec,folder,ipv6,maxwait,post_scrip
         logger.debug('THREAD %s - Sleeping 10 seconds for new check' % vm_name)
         sleep(10)
 
-    return (logger,vm,ipv6,maxwait,post_script,power_on,print_ips,print_macs)
+    if vm and power_on and (post_script or print_ips or print_macs):
+        logger.debug('THREAD %s - Creating mac, ip and post-script processing thread' % vm_name)
+        mac_ip_pool_results.append(mac_ip_pool.apply_async(vm_mac_ip_handler,(logger,vm,ipv6,maxwait,post_script,power_on,print_ips,print_macs)))
+    elif vm and (post_script or print_ips or print_macs):
+        logger.error('THREAD %s - Power on is disabled, printing of IP and Mac is not possible' % vm_name)
+
+    return vm
 
 def vm_mac_ip_handler(logger,vm,ipv6,maxwait,post_script,power_on,print_ips,print_macs):
     """
@@ -222,7 +235,7 @@ def vm_mac_ip_handler(logger,vm,ipv6,maxwait,post_script,power_on,print_ips,prin
     """
 
     mac_ip = None
-    if vm and power_on and (post_script or print_ips or print_macs):
+    if print_macs or print_ips:
         logger.info('THREAD %s - Gathering mac and ip' % vm.config.name)
         mac_ip = find_mac_ip(logger,vm,maxwait,ipv6,True)
         if mac_ip and print_macs and print_ips:
@@ -235,17 +248,12 @@ def vm_mac_ip_handler(logger,vm,ipv6,maxwait,post_script,power_on,print_ips,prin
             logger.info('THREAD %s - Printing ip information: %s %s' % (vm.config.name,vm.config.name,mac_ip[1]))
             print '%s %s' % (vm.config.name,mac_ip[1])
         elif print_macs or print_ips:
-            logger.error('THREAD %s - Unable to find mac or ip information' % vm.config.name)
-    elif vm and (post_script or print_ips or print_macs):
-        logger.error('THREAD %s - Power on is disabled, printing of IP and Mac is not possible' % vm.config.name)
+            logger.error('THREAD %s - Unable to find mac or ip information within %s seconds' % (vm.config.name,maxwait))
 
     if post_script:
         retcode = run_post_script(logger,post_script,vm,mac_ip)
         if retcode < 0:
             logger.warning('THREAD %s - Post processing failed.' % vm.config.name)
-
-def vm_mac_ip_handler_wrapper(args):
-    return vm_mac_ip_handler(*args)
 
 def main():
     """
@@ -309,7 +317,7 @@ def main():
     try:
         si = None
         try:
-            logger.debug('Connecting to server')
+            logger.info('Connecting to server')
             si = SmartConnect(host=host,user=username,pwd=password,port=int(port))
         except IOError, e:
             pass
@@ -322,7 +330,7 @@ def main():
         atexit.register(Disconnect, si)
 
         # Find the correct VM
-        logger.info('Finding template %s' % template)
+        logger.debug('Finding template %s' % template)
         template_vm = find_vm(si,logger,template,False)
         if template_vm is None:
             logger.error('Unable to find template %s' % template)
@@ -332,7 +340,7 @@ def main():
         # Find the correct Resource Pool
         resource_pool = None
         if resource_pool_name is not None:
-            logger.info('Finding resource pool %s' % resource_pool_name)
+            logger.debug('Finding resource pool %s' % resource_pool_name)
             resource_pool = find_resource_pool(si,logger,resource_pool_name)
             if resource_pool is None:
                 logger.error('Unable to find resource pool %s' % resource_pool_name)
@@ -342,7 +350,7 @@ def main():
         # Find the correct folder
         folder = None
         if folder_name is not None:
-            logger.info('Finding folder %s' % folder_name)
+            logger.debug('Finding folder %s' % folder_name)
             folder = find_folder(si,logger,folder_name)
             if folder is None:
                 logger.error('Unable to find folder %s' % folder_name)
@@ -364,24 +372,43 @@ def main():
         clone_spec = vim.vm.CloneSpec(powerOn=power_on,template=False,location=relocate_spec)
 
         # Pool handling
-        logger.debug('Setting up pool and threads')
+        logger.debug('Setting up pools and threads')
         if threads > 0:
             pool = ThreadPool(threads)
+            mac_ip_pool = ThreadPool(threads)
         else:
             pool = ThreadPool()
+            mac_ip_pool = ThreadPool()
             threads = multiprocessing.cpu_count()
-        logger.debug('Pool created with %s threads' % threads)
+        mac_ip_pool_results = []
+        logger.debug('Pools created with %s threads' % threads)
 
         # Generate VM names
         logger.debug('Creating thread specifications')
+        vm_specs = []
+        vm_names = []
         for a in range(1,amount+1):
-            vm_name = '%s-%i' % (basename,count)
-            pool.apply_async(vm_clone_handler,(si,logger,vm_name,clone_spec,folder,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm),callback=vm_mac_ip_handler_wrapper)
+            vm_names.append('%s-%i' % (basename,count))
             count += 1
 
-        logger.debug('Closing pool')
+        vm_names.sort()
+        for vm_name in vm_names:
+            vm_specs.append((si,logger,vm_name,clone_spec,folder,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results))
+
+        logger.debug('Running virtual machine clone pool')
+        pool.map(vm_clone_handler_wrapper,vm_specs)
+
+        logger.debug('Closing virtual machine clone pool')
         pool.close()
         pool.join()
+
+        logger.debug('Waiting for all mac, ip and post-script processes')
+        for running_task in mac_ip_pool_results:
+            running_task.wait()
+
+        logger.debug('Closing mac, ip and post-script processes')
+        mac_ip_pool.close()
+        mac_ip_pool.join()
 
     except vmodl.MethodFault, e:
         logger.critical('Caught vmodl fault: %s' % e.msg)
@@ -390,7 +417,7 @@ def main():
         logger.critical('Caught exception: %s' % str(e))
         return 1
 
-    logger.debug('Finished all tasks')
+    logger.info('Finished all tasks')
     return 0
 
 # Start program
