@@ -19,8 +19,9 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 * vCenter will, by default, only run 8 deployment tasks simultaniously while other tasks are queued, so setting the amount of threads to more than 8, is not really usefull.
 
 ### Using CSV file ###
-A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded with <> are mandatory, fields surrounded with [] are optional):
-    "<Clone name>";"[Resouce Pool]";"[Folder]";"[MAC Address]";"[Post-processing Script]"
+A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded without [] are mandatory, fields surrounded with [] are optional):
+    "Clone name";"[Resouce Pool]";"[Folder]";"[MAC Address]";"[Post-processing Script]"
+
 For instance:
     "Test01";"Development";"IT";"00:50:56:11:11:11";"run.sh"
 
