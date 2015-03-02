@@ -20,11 +20,13 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 
 ### Using CSV file ###
 A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded without [] are mandatory, fields surrounded with [] are optional):
+```
     "Clone name";"[Resouce Pool]";"[Folder]";"[MAC Address]";"[Post-processing Script]"
-
+```
 For instance:
+```
     "Test01";"Development";"IT";"00:50:56:11:11:11";"run.sh"
-
+```
 ### Post-processing Script ###
 The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV. 
 It is run with the following parameters:
