@@ -348,7 +348,7 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
     if vm and adv_parameters is not None and adv_parameters is not '':
         logger.info('THREAD %s - Setting advanced parameters' % vm_name)
         logger.debug('THREAD %s - Loading JSON data: %s' % (vm_name,adv_parameters))
-        adv_parameters_dict = json.load(adv_parameters)
+        adv_parameters_dict = json.loads(adv_parameters)
 
     if vm and power_on:
         logger.info('THREAD %s - Powering on VM. This might take a couple of seconds' % vm_name)
