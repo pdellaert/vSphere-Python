@@ -349,6 +349,30 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
         logger.info('THREAD %s - Setting advanced parameters' % vm_name)
         logger.debug('THREAD %s - Loading JSON data: %s' % (vm_name,adv_parameters))
         adv_parameters_dict = json.loads(adv_parameters)
+        vm_option_value = []
+        for key,value in adv_parameters_dict.iteritems():
+            logger.debug('THREAD %s - Creating option value for key %s and value %s' % (vm_name,key,value))
+            vm_option_value.append(vim.option.OptionValue(key,value))
+        logger.debug('THREAD %s - Creating of config spec for VM' % vm_name)
+        config_spec = vim.vm.ConfigSpec(extraConfig=vm_option_value)
+        logger.info('THREAD %s - Applying advanced parameters. This might take a couple of seconds' % vm_name)
+        config_task = vm.ReconfigVM_Task(spec=config_spec)
+        logger.debug('THREAD %s - Waiting for the advanced paramerter to be applied' % vm_name)
+        run_loop = True
+        while run_loop:
+            info = task.info
+            if info.state == vim.TaskInfo.State.success:
+                run_loop = False
+                break
+            elif info.state == vim.TaskInfo.State.error:
+                if info.error.fault:
+                    logger.info('THREAD %s - Applying advanced parameters has quit with error: %s' % (vm_name,info.error.fault.faultMessage))
+                else:
+                    logger.info('THREAD %s - Applying advanced parameters has quit with cancelation' % vm_name)
+                run_loop = False
+                break
+            sleep(5)
+
 
     if vm and power_on:
         logger.info('THREAD %s - Powering on VM. This might take a couple of seconds' % vm_name)
