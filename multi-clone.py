@@ -334,6 +334,7 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
             while run_loop:
                 info = task.info
                 if info.state == vim.TaskInfo.State.success:
+                    logger.debug('THREAD %s - Mac address change completed' % vm_name)
                     run_loop = False
                     break
                 elif info.state == vim.TaskInfo.State.error:
@@ -362,6 +363,7 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
         while run_loop:
             info = task.info
             if info.state == vim.TaskInfo.State.success:
+                    logger.debug('THREAD %s - Advanced parameters applied' % vm_name)
                 run_loop = False
                 break
             elif info.state == vim.TaskInfo.State.error:
