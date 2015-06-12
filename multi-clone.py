@@ -19,9 +19,9 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 
 --- Using CSV file ---
 A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded with <> are mandatory, fields surrounded with [] are optional):
-"<Clone name>";"[Resouce Pool]";"[Folder]";"[MAC Address]";"[Post-processing Script]"
+'<Clone name>';'[Resouce Pool]';'[Folder]';'[MAC Address]';'[Post-processing Script]';'[Advanced VM Parameters in JSON format]'
 For instance:
-"Test01";"Development";"IT";"00:50:56:11:11:11";"run.sh"
+'Test01';'Development';'IT';'00:50:56:11:11:11';'run.sh';'{"parameter.1":"value.1","parameter.2":"value.2"}'
 
 --- Post-processing Script ---
 The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV. 
@@ -48,6 +48,7 @@ import argparse
 import atexit
 import csv
 import getpass
+import json
 import multiprocessing
 import logging
 import os.path
@@ -231,7 +232,7 @@ def vm_clone_handler_wrapper(args):
 
     return vm_clone_handler(*args)
 
-def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results):
+def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac,ipv6,maxwait,post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results,adv_parameters):
     """
     Will handle the thread handling to clone a virtual machine and run post processing
     """
@@ -343,6 +344,11 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
                     run_loop = False
                     break
                 sleep(5)
+
+    if vm and adv_parameters is not None and adv_parameters is not '':
+        logger.info('THREAD %s - Setting advanced parameters' % vm_name)
+        logger.debug('THREAD %s - Loading JSON data: %s' (vm_name,adv_parameters))
+        adv_paramaters_dict = json.load(adv_parameters)
 
     if vm and power_on:
         logger.info('THREAD %s - Powering on VM. This might take a couple of seconds' % vm_name)
@@ -518,7 +524,7 @@ def main():
                 return 1
 
             with open(csvfile,'rb') as tasklist:
-                taskreader = csv.reader(tasklist,delimiter=';',quotechar='"')
+                taskreader = csv.reader(tasklist,delimiter=';',quotechar="'")
                 for row in taskreader:
                     logger.debug('Found CSV row: %s' % ','.join(row))
                     # VM Name
@@ -547,9 +553,14 @@ def main():
                         cur_post_script = post_script
                     else:
                         cur_post_script = row[4]
+                    # Advanced parameters
+                    if row[5] is None or row[5] is '':
+                        cur_adv_parameters = None
+                    else:
+                        cur_adv_parameters = row[5]
 
                     # Creating VM
-                    vm_specs.append((si,logger,cur_vm_name,cur_resource_pool_name,cur_folder_name,custom_mac,ipv6,maxwait,cur_post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results))
+                    vm_specs.append((si,logger,cur_vm_name,cur_resource_pool_name,cur_folder_name,custom_mac,ipv6,maxwait,cur_post_script,power_on,print_ips,print_macs,template,template_vm,mac_ip_pool,mac_ip_pool_results,cur_adv_parameters))
 
 
         logger.debug('Running virtual machine clone pool')
