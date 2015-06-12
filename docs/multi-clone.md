@@ -6,6 +6,7 @@ This script has the following capabilities:
 * Deploy a specified amount of virtual machines
 * Deploy in a specified folder
 * Deploy in a specified resource pool
+* Set advanced configuration options
 * Specify if the cloned virtual machines need to be powered on
 * Print out information of the main network interface (mac and ip, either IPv4 or IPv6)
 * Run a post-processing script with 3 parameters (virtual machine name, mac and ip)
@@ -21,11 +22,11 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 ### Using CSV file ###
 A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded without [] are mandatory, fields surrounded with [] are optional):
 ```
-    "Clone name";"[Resouce Pool]";"[Folder]";"[MAC Address]";"[Post-processing Script]"
+    '<Clone name>';'[Resouce Pool]';'[Folder]';'[MAC Address]';'[Post-processing Script]';'[Advanced VM Parameters in JSON format]'
 ```
 For instance:
 ```
-    "Test01";"Development";"IT";"00:50:56:11:11:11";"run.sh"
+    'Test01';'Development';'IT';'00:50:56:11:11:11';'run.sh';'{"parameter.1":"value.1","parameter.2":"value.2"}'
 ```
 ### Post-processing Script ###
 The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV. 
