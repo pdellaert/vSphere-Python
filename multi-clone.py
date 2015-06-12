@@ -349,12 +349,12 @@ def vm_clone_handler(si,logger,vm_name,resource_pool_name,folder_name,custom_mac
         logger.info('THREAD %s - Setting advanced parameters' % vm_name)
         logger.debug('THREAD %s - Loading JSON data: %s' % (vm_name,adv_parameters))
         adv_parameters_dict = json.loads(adv_parameters)
-        vm_option_value = []
+        vm_option_values = []
         for key,value in adv_parameters_dict.iteritems():
             logger.debug('THREAD %s - Creating option value for key %s and value %s' % (vm_name,key,value))
-            vm_option_value.append(vim.option.OptionValue(key,value))
+            vm_option_values.append(vim.option.OptionValue(key=key,value=value))
         logger.debug('THREAD %s - Creating of config spec for VM' % vm_name)
-        config_spec = vim.vm.ConfigSpec(extraConfig=vm_option_value)
+        config_spec = vim.vm.ConfigSpec(extraConfig=vm_option_values)
         logger.info('THREAD %s - Applying advanced parameters. This might take a couple of seconds' % vm_name)
         config_task = vm.ReconfigVM_Task(spec=config_spec)
         logger.debug('THREAD %s - Waiting for the advanced paramerter to be applied' % vm_name)
