@@ -242,6 +242,10 @@ def main():
         # WHATCH POOL, IF TASK DONE, ADD TASK
         # CAPTURE CTRL-C TO STOP
 
+        if len(vms) < threads:
+            logger.warning('Amount of threads %s can not be higher than amount of vms: Setting amount of threads to %s' % (threads,len(vms)))
+            threads = len(vms)
+        
         # Pool handling
         logger.debug('Setting up pools and threads')
         pool = ThreadPool(threads)
