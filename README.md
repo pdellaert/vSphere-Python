@@ -29,7 +29,7 @@ This script has the following capabilities:
 * Print logging to a log file or stdout
 * Do this threaded
 
-Check [the random-vmotion.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/mrandom-vmotion.md) for more information on the options and capabilities.
+Check [the random-vmotion.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/random-vmotion.md) for more information on the options and capabilities.
 
 # pysphere-multi-clone.py #
 This script can be used to deploy multiple VMs from a template in an automatic way, with the possibility to add a post script. The post script gets two parameters: the VM name and possibly the IP address (either IPv4 or IPv6, depending on the parameters)
