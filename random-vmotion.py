@@ -28,6 +28,7 @@ import json
 import multiprocessing
 import logging
 import os.path
+import random
 import re
 import requests
 import subprocess
@@ -110,15 +111,27 @@ def vm_vmotion_handler_wrapper(args):
 
     return vm_vmotion_handler(*args)
 
-def vm_vmotion_handler(si,logger,vm_name,host):
+def vm_vmotion_handler(si,logger,vm,host):
     """
     Will handle the thread handling to vMotion a virtual machine
     """
 
-    run_loop = True
-    vm = None
+    logger.debug('THREAD %s - started' % vm.name)
 
-    logger.debug('THREAD %s - started' % vm_name)
+    # Getting resource pool
+    resource_pool = vm.resourcePool
+
+    # Checking powerstate
+    if vm.runtime.powerState != 'poweredOn':
+        logger.warning('THREAD %s - VM is not powered on, vMotion is only available for powered on VMs.' % vm.name)
+        return 0
+
+    # Setting migration priority
+    migrate_priority = vim.VirtualMachine.MovePriority.defaultPriority
+
+    # Starting migration
+    logger.debug('THREAD %s - Starting migration to host %s' % (vm.name,host.name))
+    migrate_task = vm.Migrate(pool=resource_pool, host=host, priority=migrate_priority)
 
 def main():
     """
@@ -234,14 +247,6 @@ def main():
                 else:
                     logger.warning('Host %s does not exist, skipping this host' % cur_host_name)
 
-
-        # COUNT IF LIST IS LONGER THAN NUM THREADS
-        # IF NOT, WARN AND CREATE SMALLER POOL (EQUAL TO THREADS)
-        # CREATE POOL
-        # FILL POOL
-        # WHATCH POOL, IF TASK DONE, ADD TASK
-        # CAPTURE CTRL-C TO STOP
-
         if len(vms) < threads:
             logger.warning('Amount of threads %s can not be higher than amount of vms: Setting amount of threads to %s' % (threads,len(vms)))
             threads = len(vms)
@@ -249,8 +254,44 @@ def main():
         # Pool handling
         logger.debug('Setting up pools and threads')
         pool = ThreadPool(threads)
+        pool_results = []
         logger.debug('Pools created with %s threads' % threads)
 
+        vm_index = 0
+        while True:
+            # Check if a pool_result is finished
+            for result in pool_results:
+                if result.ready():
+                    logger.debug('Removing finished task from the pool results')
+                    pool_results.remove(result)
+
+            # If the pool is still filled, continue
+            if len(pool_results) >= threads:
+                logger.debug('All threads running, not creating new vMotion tasks. Waiting 5 seconds to check again')
+                sleep(5)
+                continue
+
+            # If not, create new task (selects next VM, selects random host)
+            vm = vms[vm_index]
+            host = random.choice(hosts)
+            logger.info('Creating vMotion task for VM %s to host %s' % (vm.name,host.name))
+            pool.apply_async(vm_vmotion_handler_wrapper,(si,logger,vm,host))
+
+            vm_index++
+            if vm_index >= len(vms):
+                logger.debug('Looping back to first VM')
+                vm_index = 0
+
+    except KeyboardInterrupt:
+        logger.info('Received interrupt, finishing running threads and not creating any new migrations')
+        if pool is not None and pool_results is not None:
+            for result in pool_results:
+                result.wait()
+            pool.close()
+            pool.join()
+
+        logger.debug('Exiting')
+        return 0
     except vmodl.MethodFault, e:
         logger.critical('Caught vmodl fault: %s' % e.msg)
         return 1
