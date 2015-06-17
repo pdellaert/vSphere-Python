@@ -5,9 +5,17 @@ This script has the following capabilities:
     * vMotion VMs to a random host
     * Continue until stopped
     * Print logging to a log file or stdout
+    * Do this threaded
 
 --- Usage ---
 Run 'random-vmotion.py -h' for an overview
+
+--- Using threads ---
+Deciding on the optimal amount of threads might need a bit of experimentation. Keep certain things in mind:
+    * The optimal amount of threads depends on the memory consumption of the VMs, the activity of the VMs and the amount of hosts as each thread will execute a vMotion task. If this is all to the same host with the a lot of activity in the VM, you might get in trouble.
+
+--- Files ---
+The files are a list of VMs and Hosts, each in a seperate file and with one entry per line
 
 --- Documentation ---
 https://github.com/pdellaert/vSphere-Python/blob/master/docs/random-vmotion.md

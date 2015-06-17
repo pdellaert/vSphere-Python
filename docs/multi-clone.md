@@ -108,12 +108,12 @@ It is run with the following parameters:
                             Maximum amount of seconds to wait when gathering
                             information (default = 120)
 
-### Issues and feature requests
+### Issues and feature requests ###
 Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere-Python/issues) of the repository to post issues and feature requests
 
 ### Requirements ### 
 1. [pyVmomi](https://github.com/vmware/pyvmomi)
-2. vCenter 5+ (tested with 5.1, 5.1u & 5.5)
+2. vCenter 5+ (tested with 5.1, 5.1u, 5.5 & 6.0)
 3. A user with a role with at least the following permission over the complete vCenter server:
   * Datastore 
     * Allocate space
