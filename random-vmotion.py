@@ -47,7 +47,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="Randomly vMotion each VM from a list one by one to a random host from a list, until stopped.")
     parser.add_argument('-d', '--debug', required=False, help='Enable debug output', dest='debug', action='store_true')
     parser.add_argument('-H', '--host', nargs=1, required=True, help='The vCenter or ESXi host to connect to', dest='host', type=str)
-    parser.add_argument('-i', '--interval', nargs=1, required=False, help='The amount of time to wait after a vMotion is finished to schedule a new one (default 30 seconds)', dest='wait', type=int, default=[30])
+    parser.add_argument('-i', '--interval', nargs=1, required=False, help='The amount of time to wait after a vMotion is finished to schedule a new one (default 30 seconds)', dest='interval', type=int, default=[30])
     parser.add_argument('-l', '--log-file', nargs=1, required=False, help='File to log to (default = stdout)', dest='logfile', type=str)
     parser.add_argument('-o', '--port', nargs=1, required=False, help='Server port to connect to (default = 443)', dest='port', type=int, default=[443])
     parser.add_argument('-p', '--password', nargs=1, required=False, help='The password with which to connect to the host. If not specified, the user is prompted at runtime for a password', dest='password', type=str)
@@ -96,7 +96,7 @@ def find_host(si,logger,name,threaded=False):
             logger.debug('THREAD %s - Checking host %s' % (name,host.name))
         else:
             logger.debug('Checking host %s' % host.name)
-        if host.name == host:
+        if host.name == name:
             if threaded:
                 logger.debug('THREAD %s - Found host %s' % (name,host.name))
             else:
@@ -106,12 +106,12 @@ def find_host(si,logger,name,threaded=False):
 
 def vm_vmotion_handler_wrapper(args):
     """
-    Wrapping arround vm_clone_handler
+    Wrapping arround vm_vMotion_handler
     """
 
     return vm_vmotion_handler(*args)
 
-def vm_vmotion_handler(si,logger,vm,host):
+def vm_vmotion_handler(si,logger,vm,host,interval):
     """
     Will handle the thread handling to vMotion a virtual machine
     """
@@ -132,6 +132,31 @@ def vm_vmotion_handler(si,logger,vm,host):
     # Starting migration
     logger.debug('THREAD %s - Starting migration to host %s' % (vm.name,host.name))
     migrate_task = vm.Migrate(pool=resource_pool, host=host, priority=migrate_priority)
+
+    run_loop = True
+    while run_loop:
+        info = migrate_task.info
+        logger.debug('THREAD %s - Checking vMotion task' % vm.name)
+        if info.state == vim.TaskInfo.State.success:
+            logger.info('THREAD %s - vMotion finished' % vm.name)
+            run_loop = False
+            break
+        elif info.state == vim.TaskInfo.State.running:
+            logger.debug('THREAD %s - vMotion task is at %s percent' % (vm.name,info.progress))
+        elif info.state == vim.TaskInfo.State.queued:
+            logger.debug('THREAD %s - vMotion task is queued' % vm.name)
+        elif info.state == vim.TaskInfo.State.error:
+            if info.error.fault:
+                logger.info('THREAD %s - vMotion task has quit with error: %s' % (vm.name,info.error.fault.faultMessage))
+            else:
+                logger.info('THREAD %s - vMotion task has quit with cancelation' % vm.name)
+            run_loop = False
+            break
+        logger.debug('THREAD %s - Sleeping 10 seconds for new check' % vm.name)
+        sleep(1)
+
+    logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name,interval))
+    sleep(interval)
 
 def main():
     """
@@ -175,6 +200,8 @@ def main():
     if nosslcheck:
         logger.debug('Disabling SSL certificate verification.')
         requests.packages.urllib3.disable_warnings()
+        import ssl
+        ssl._create_default_https_context = ssl._create_unverified_context
 
     # Getting user password
     if password is None:
@@ -275,9 +302,9 @@ def main():
             vm = vms[vm_index]
             host = random.choice(hosts)
             logger.info('Creating vMotion task for VM %s to host %s' % (vm.name,host.name))
-            pool.apply_async(vm_vmotion_handler_wrapper,(si,logger,vm,host))
+            pool_results.append(pool.apply_async(vm_vmotion_handler,(si,logger,vm,host,interval)))
 
-            vm_index++
+            vm_index += 1
             if vm_index >= len(vms):
                 logger.debug('Looping back to first VM')
                 vm_index = 0
