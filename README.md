@@ -20,6 +20,17 @@ This script has the following capabilities:
 
 Check [the multi-clone.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/multi-clone.md) for more information on the options and capabilities.
 
+# random-vmotion.py #
+random-vmotion is a Python script which will vMotion VMs randomly to a set of hosts until stopped by a keyboard interupt (ctrl-c)
+
+This script has the following capabilities:
+* vMotion VMs to a random host
+* Continue until stopped
+* Print logging to a log file or stdout
+* Do this threaded
+
+Check [the random-vmotion.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/mrandom-vmotion.md) for more information on the options and capabilities.
+
 # pysphere-multi-clone.py #
 This script can be used to deploy multiple VMs from a template in an automatic way, with the possibility to add a post script. The post script gets two parameters: the VM name and possibly the IP address (either IPv4 or IPv6, depending on the parameters)
 
