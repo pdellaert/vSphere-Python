@@ -53,6 +53,7 @@ def get_args():
     """
 
     parser = argparse.ArgumentParser(description="Randomly vMotion each VM from a list one by one to a random host from a list, until stopped.")
+    parser.add_argument('-1', '--one-run', required=False, help='Stop after vMotioning each VM once', dest='onerun', action='store_true')
     parser.add_argument('-d', '--debug', required=False, help='Enable debug output', dest='debug', action='store_true')
     parser.add_argument('-H', '--host', nargs=1, required=True, help='The vCenter or ESXi host to connect to', dest='host', type=str)
     parser.add_argument('-i', '--interval', nargs=1, required=False, help='The amount of time to wait after a vMotion is finished to schedule a new one (default 30 seconds)', dest='interval', type=int, default=[30])
@@ -112,13 +113,6 @@ def find_host(si,logger,name,threaded=False):
             return host
     return None
 
-def vm_vmotion_handler_wrapper(args):
-    """
-    Wrapping arround vm_vMotion_handler
-    """
-
-    return vm_vmotion_handler(*args)
-
 def vm_vmotion_handler(si,logger,vm,host,interval):
     """
     Will handle the thread handling to vMotion a virtual machine
@@ -146,7 +140,7 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
         info = migrate_task.info
         logger.debug('THREAD %s - Checking vMotion task' % vm.name)
         if info.state == vim.TaskInfo.State.success:
-            logger.info('THREAD %s - vMotion finished' % vm.name)
+            logger.debug('THREAD %s - vMotion finished' % vm.name)
             run_loop = False
             break
         elif info.state == vim.TaskInfo.State.running:
@@ -166,6 +160,17 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
     logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name,interval))
     sleep(interval)
 
+def wait_for_pool_end(logger,pool):
+    """
+    Waits for all running tasks to end.
+    """
+
+    logger.debug('Waiting for %s vMotions to finish' % len(pool_results))
+    for result in pool_results:
+        result.wait()
+    pool.close()
+    pool.join()
+
 def main():
     """
     Clone a VM or template into multiple VMs with logical names with numbers and allow for post-processing
@@ -173,6 +178,7 @@ def main():
 
     # Handling arguments
     args = get_args()
+    onerun      = args.onerun
     debug       = args.debug
     host        = args.host[0]
     interval    = args.interval[0]
@@ -293,7 +299,8 @@ def main():
         logger.debug('Pools created with %s threads' % threads)
 
         vm_index = 0
-        while True:
+        run_loop = True
+        while run_loop:
             # Check if a pool_result is finished
             for result in pool_results:
                 if result.ready():
@@ -313,6 +320,12 @@ def main():
             pool_results.append(pool.apply_async(vm_vmotion_handler,(si,logger,vm,host,interval)))
 
             vm_index += 1
+            if vm_index >= len(vms) and onerun:
+                logger.debug('One-run is enabled, all VMs are scheduled to vMotion. Finishing.')
+                wait_for_pool_end(logger,pool)
+                run_loop = False
+                break
+
             if vm_index >= len(vms):
                 logger.debug('Looping back to first VM')
                 vm_index = 0
@@ -320,13 +333,8 @@ def main():
     except KeyboardInterrupt:
         logger.info('Received interrupt, finishing running threads and not creating any new migrations')
         if pool is not None and pool_results is not None:
-            for result in pool_results:
-                result.wait()
-            pool.close()
-            pool.join()
-
-        logger.debug('Exiting')
-        return 0
+            wait_for_pool_end(logger,pool)
+        
     except vmodl.MethodFault, e:
         logger.critical('Caught vmodl fault: %s' % e.msg)
         return 1
