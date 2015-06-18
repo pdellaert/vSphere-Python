@@ -160,7 +160,7 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
     logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name,interval))
     sleep(interval)
 
-def wait_for_pool_end(logger,pool):
+def wait_for_pool_end(logger,pool,pool_results):
     """
     Waits for all running tasks to end.
     """
@@ -333,7 +333,7 @@ def main():
     except KeyboardInterrupt:
         logger.info('Received interrupt, finishing running threads and not creating any new migrations')
         if pool is not None and pool_results is not None:
-            wait_for_pool_end(logger,pool)
+            wait_for_pool_end(logger,pool,pool_results)
         
     except vmodl.MethodFault, e:
         logger.critical('Caught vmodl fault: %s' % e.msg)
