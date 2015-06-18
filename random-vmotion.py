@@ -154,7 +154,7 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
                 logger.info('THREAD %s - vMotion task has quit with cancelation' % vm.name)
             run_loop = False
             break
-        logger.debug('THREAD %s - Sleeping 10 seconds for new check' % vm.name)
+        logger.debug('THREAD %s - Sleeping 1 second for new check' % vm.name)
         sleep(1)
 
     logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name,interval))
