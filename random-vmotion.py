@@ -322,7 +322,7 @@ def main():
             vm_index += 1
             if vm_index >= len(vms) and onerun:
                 logger.debug('One-run is enabled, all VMs are scheduled to vMotion. Finishing.')
-                wait_for_pool_end(logger,pool)
+                wait_for_pool_end(logger,pool,pool_results)
                 run_loop = False
                 break
 
