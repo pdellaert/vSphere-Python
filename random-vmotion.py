@@ -69,28 +69,6 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def find_host(si,logger,name,threaded=False):
-    """
-    Find a host by it's name and return it
-    """
-
-    content = si.content
-    obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.HostSystem],True)
-    host_list = obj_view.view
-
-    for host in host_list:
-        if threaded:
-            logger.debug('THREAD %s - Checking host %s' % (name,host.name))
-        else:
-            logger.debug('Checking host %s' % host.name)
-        if host.name == name:
-            if threaded:
-                logger.debug('THREAD %s - Found host %s' % (name,host.name))
-            else:
-                logger.debug('Found host %s' % host.name)
-            return host
-    return None
-
 def vm_vmotion_handler(si,logger,vm,host,interval):
     """
     Will handle the thread handling to vMotion a virtual machine
@@ -241,7 +219,7 @@ def main():
 
                 # Finding VM
                 found_vm = False
-		for vm in vm_list:
+                for vm in vm_list:
                     if vm.name == cur_vm_name:
                         logger.debug('Found VM %s' % cur_vm_name)
                         vms.append(vm)
@@ -254,6 +232,8 @@ def main():
                     logger.warning('VM %s does not exist, skipping this vm' % cur_vm_name)
 
         # Getting hosts
+        obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.HostSystem],True)
+        host_list = obj_view.view
         hosts = []
         with open(targetfile,'rb') as tasklist:
             taskreader = csv.reader(tasklist,delimiter=';',quotechar="'")
@@ -266,13 +246,17 @@ def main():
                 else:
                     cur_host_name = row[0]
 
-                # Finding Host
-                cur_host = find_host(si,logger,cur_host_name)
+                found_host = False
+                for host in host_list:
+                    if host.name == cur_host_name:
+                        logger.debug('Found Host %s' % cur_host_name)
+                        hosts.append(host)
+                        found_host = False
+                        # Removing Host out of the list to speed up further lookups
+                        host_list.remove(host)
+                        break
 
-                # Adding Host to list
-                if cur_host is not None:
-                    hosts.append(cur_host)
-                else:
+                if not found_host:
                     logger.warning('Host %s does not exist, skipping this host' % cur_host_name)
 
         if len(vms) < threads:
