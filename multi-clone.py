@@ -492,7 +492,8 @@ def main():
         logger.debug('Disabling SSL certificate verification.')
         requests.packages.urllib3.disable_warnings()
         import ssl
-        ssl._create_default_https_context = ssl._create_unverified_context
+	if hasattr(ssl, '_create_unverified_context'): 
+            ssl._create_default_https_context = ssl._create_unverified_context
 
     # Getting user password
     if password is None:

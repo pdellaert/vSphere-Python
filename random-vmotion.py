@@ -69,28 +69,6 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def find_vm(si,logger,name,threaded=False):
-    """
-    Find a virtual machine by it's name and return it
-    """
-
-    content = si.content
-    obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.VirtualMachine],True)
-    vm_list = obj_view.view
-
-    for vm in vm_list:
-        if threaded:
-            logger.debug('THREAD %s - Checking virtual machine %s' % (name,vm.name))
-        else:
-            logger.debug('Checking virtual machine %s' % vm.name)
-        if vm.name == name:
-            if threaded:
-                logger.debug('THREAD %s - Found virtual machine %s' % (name,vm.name))
-            else:
-                logger.debug('Found virtual machine %s' % vm.name)
-            return vm
-    return None
-
 def find_host(si,logger,name,threaded=False):
     """
     Find a host by it's name and return it
@@ -215,7 +193,8 @@ def main():
         logger.debug('Disabling SSL certificate verification.')
         requests.packages.urllib3.disable_warnings()
         import ssl
-        ssl._create_default_https_context = ssl._create_unverified_context
+	if hasattr(ssl, '_create_unverified_context'): 
+            ssl._create_default_https_context = ssl._create_unverified_context
 
     # Getting user password
     if password is None:
@@ -246,6 +225,9 @@ def main():
 
         # Getting VMs
         vms = []
+        content = si.content
+        obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.VirtualMachine],True)
+        vm_list = obj_view.view
         with open(vmfile,'rb') as tasklist:
             taskreader = csv.reader(tasklist,delimiter=';',quotechar="'")
             for row in taskreader:
@@ -258,12 +240,17 @@ def main():
                     cur_vm_name = row[0]
 
                 # Finding VM
-                cur_vm = find_vm(si,logger,cur_vm_name)
+                found_vm = False
+		for vm in vm_list:
+                    if vm.name == cur_vm_name:
+                        logger.debug('Found VM %s' % cur_vm_name)
+                        vms.append(vm)
+                        found_vm = True
+                        # Removing VM out of the list to speed up further lookups
+                        vm_list.remove(vm)
+                        break
 
-                # Adding VM to list
-                if cur_vm is not None:
-                    vms.append(cur_vm)
-                else:
+                if not found_vm:
                     logger.warning('VM %s does not exist, skipping this vm' % cur_vm_name)
 
         # Getting hosts
