@@ -280,8 +280,8 @@ def main():
 
             # If the pool is still filled, continue
             if len(pool_results) >= threads:
-                logger.debug('All threads running, not creating new vMotion tasks. Waiting 5 seconds to check again')
-                sleep(5)
+                logger.debug('All threads running, not creating new vMotion tasks. Waiting 1 second to check again')
+                sleep(1)
                 continue
 
             # If not, create new task (selects next VM, selects random host)
