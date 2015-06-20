@@ -251,7 +251,7 @@ def main():
                     if host.name == cur_host_name:
                         logger.debug('Found Host %s' % cur_host_name)
                         hosts.append(host)
-                        found_host = False
+                        found_host = True
                         # Removing Host out of the list to speed up further lookups
                         host_list.remove(host)
                         break
