@@ -1,9 +1,12 @@
 multi-clone.py
 ==============
-multi-clone is a Python script which allows you to clone a virtual machine or virtual machine template into multiple new virtual machines in a VMware vSphere environment. 
+multi-clone is a Python script which allows you to clone a virtual machine or virtual machine template into multiple new virtual machines in a VMware vSphere environment.
 
 This script has the following capabilities:
 * Deploy a specified amount of virtual machines
+* Deploy in a specified datacenter
+* Deploy in a specified cluster
+* Deploy in a specified datastore
 * Deploy in a specified folder
 * Deploy in a specified resource pool
 * Set advanced configuration options
@@ -22,27 +25,29 @@ Deciding on the optimal amount of threads might need a bit of experimentation. K
 ### Using CSV file ###
 A CSV file can be provided with a line for each VM that needs to be created, with specific parameters for each VM. The format of each row should be (fields surrounded without [] are mandatory, fields surrounded with [] are optional):
 ```
-    '<Clone name>';'[Resouce Pool]';'[Folder]';'[MAC Address]';'[Post-processing Script]';'[Advanced VM Parameters in JSON format]'
+    "<Clone name>";"[Datacenter]";"[Cluster]";"[Resouce Pool]";"[Folder]";"[Datastore]";"[MAC Address]";"[Post-processing Script]";"[Advanced VM Parameters in JSON format]"
 ```
 For instance:
 ```
-    'Test01';'Development';'IT';'00:50:56:11:11:11';'run.sh';'{"parameter.1":"value.1","parameter.2":"value.2"}'
+    "Test01";"New-York";"Compute-Cluster-01";"Development";"IT";"VSAN-DS";"00:50:56:11:11:11";"run.sh";"{'parameter.1':'value.1','parameter.2':'value.2'}"
 ```
 ### Post-processing Script ###
-The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV. 
+The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV.
 It is run with the following parameters:
 * virtual machine name, mac and ip : If Print IPs or Print MACs is enabled, combined with Power on
 * virtual machine name, mac: If a custom mac address was specified (even if VM is not powered on)
 * virtual machine name: If a power on is disabled and no custom mac address is enabled
 
 ### Usage ###
-    usage: multi-clone.py [-h] [-6] [-b BASENAME] [-c COUNT] [-C CSVFILE] [-d]
-                          [-f FOLDER] -H HOST [-i] [-m] [-l LOGFILE] [-n AMOUNT]
-                          [-o PORT] [-p PASSWORD] [-P] [-r RESOURCE_POOL]
-                          [-s POST_SCRIPT] [-S] -t TEMPLATE [-T THREADS] -u
-                          USERNAME [-v] [-w MAXWAIT]
+    usage: multi-clone.py [-h] [-6] [-b BASENAME] [-c COUNT] [-C CSVFILE]
+                          [--cluster CLUSTER] [-d] [--datacenter DATACENTER]
+                          [--datastore DATATORE] [--folder FOLDER] -H HOST [-i]
+                          [-m] [-l LOGFILE] [-n AMOUNT] [-o PORT] [-p PASSWORD]
+                          [-P] [--resource-pool RESOURCE_POOL] [-s POST_SCRIPT]
+                          [-S] -t TEMPLATE [-T THREADS] -u USERNAME [-v]
+                          [-w MAXWAIT]
 
-    Deploy a template into multiple VM's. You can get information returned with
+    Deploy a template into multiple VM"s. You can get information returned with
     the name of the virtual machine created and it's main mac and ip address.
     Either in IPv4 or IPv6 format. You can specify which folder and/or resource
     pool the clone should be placed in. Verbose and debug output can either be
@@ -66,11 +71,19 @@ It is run with the following parameters:
                             For each line, a clone will be created. A line consits
                             of the following fields, fields inside <> are
                             mandatory, fields with [] are not: "<Clone
-                            name>";"[Resouce Pool]";"[Folder]";"[MAC
-                            Address]";"[Post Script]"
+                            name>";"[Datacenter]";"[Cluster]";"[Resouce
+                            Pool]";"[Folder]";"[Datastore]";"[MAC Address
+                            ]";"[Post-processing Script]";"[Advanced VM Parameters
+                            in JSON format]"
+      --cluster CLUSTER     The cluster in which the new VMs should reside
+                            (default = same cluster as source virtual machine
       -d, --debug           Enable debug output
-      -f FOLDER, --folder FOLDER
-                            The folder in which the new VMs should reside (default
+      --datacenter DATACENTER
+                            The datacenter in which the new VMs should reside
+                            (default = same datacenter as source virtual machine
+      --datastore DATATORE  The datastore in which the new VMs should reside
+                            (default = same datastore as source virtual machine
+      --folder FOLDER       The folder in which the new VMs should reside (default
                             = same folder as source virtual machine)
       -H HOST, --host HOST  The vCenter or ESXi host to connect to
       -i, --print-ips       Enable IP output
@@ -86,7 +99,7 @@ It is run with the following parameters:
                             password
       -P, --disable-power-on
                             Disable power on of cloned VMs
-      -r RESOURCE_POOL, --resource-pool RESOURCE_POOL
+      --resource-pool RESOURCE_POOL
                             The resource pool in which the new VMs should reside,
                             (default = Resources, the root resource pool)
       -s POST_SCRIPT, --post-script POST_SCRIPT
@@ -111,11 +124,11 @@ It is run with the following parameters:
 ### Issues and feature requests ###
 Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere-Python/issues) of the repository to post issues and feature requests
 
-### Requirements ### 
+### Requirements ###
 1. [pyVmomi](https://github.com/vmware/pyvmomi)
 2. vCenter 5+ (tested with 5.1, 5.1u, 5.5 & 6.0)
 3. A user with a role with at least the following permission over the complete vCenter server:
-  * Datastore 
+  * Datastore
     * Allocate space
   * Network
     * Assign Network
