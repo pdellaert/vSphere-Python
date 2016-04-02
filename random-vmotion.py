@@ -32,20 +32,16 @@ import argparse
 import atexit
 import csv
 import getpass
-import json
-import multiprocessing
 import logging
 import os.path
 import random
-import re
 import requests
-import subprocess
-import sys
 
 from time import sleep
 from pyVim.connect import SmartConnect, Disconnect
 from pyVmomi import vim, vmodl
 from multiprocessing.dummy import Pool as ThreadPool
+
 
 def get_args():
     """
@@ -69,7 +65,8 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def vm_vmotion_handler(si,logger,vm,host,interval):
+
+def vm_vmotion_handler(si, logger, vm, host, interval):
     """
     Will handle the thread handling to vMotion a virtual machine
     """
@@ -88,7 +85,7 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
     migrate_priority = vim.VirtualMachine.MovePriority.defaultPriority
 
     # Starting migration
-    logger.debug('THREAD %s - Starting migration to host %s' % (vm.name,host.name))
+    logger.debug('THREAD %s - Starting migration to host %s' % (vm.name, host.name))
     migrate_task = vm.Migrate(pool=resource_pool, host=host, priority=migrate_priority)
 
     run_loop = True
@@ -100,12 +97,12 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
             run_loop = False
             break
         elif info.state == vim.TaskInfo.State.running:
-            logger.debug('THREAD %s - vMotion task is at %s percent' % (vm.name,info.progress))
+            logger.debug('THREAD %s - vMotion task is at %s percent' % (vm.name, info.progress))
         elif info.state == vim.TaskInfo.State.queued:
             logger.debug('THREAD %s - vMotion task is queued' % vm.name)
         elif info.state == vim.TaskInfo.State.error:
             if info.error.fault:
-                logger.info('THREAD %s - vMotion task has quit with error: %s' % (vm.name,info.error.fault.faultMessage))
+                logger.info('THREAD %s - vMotion task has quit with error: %s' % (vm.name, info.error.fault.faultMessage))
             else:
                 logger.info('THREAD %s - vMotion task has quit with cancelation' % vm.name)
             run_loop = False
@@ -113,10 +110,11 @@ def vm_vmotion_handler(si,logger,vm,host,interval):
         logger.debug('THREAD %s - Sleeping 1 second for new check' % vm.name)
         sleep(1)
 
-    logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name,interval))
+    logger.debug('THREAD %s - Waiting %s seconds (interval) before ending the thread and releasing it for a new task' % (vm.name, interval))
     sleep(interval)
 
-def wait_for_pool_end(logger,pool,pool_results):
+
+def wait_for_pool_end(logger, pool, pool_results):
     """
     Waits for all running tasks to end.
     """
@@ -127,6 +125,7 @@ def wait_for_pool_end(logger,pool,pool_results):
     pool.close()
     pool.join()
 
+
 def main():
     """
     Clone a VM or template into multiple VMs with logical names with numbers and allow for post-processing
@@ -134,23 +133,23 @@ def main():
 
     # Handling arguments
     args = get_args()
-    onerun      = args.onerun
-    debug       = args.debug
-    host        = args.host[0]
-    interval    = args.interval[0]
-    log_file= None
+    onerun = args.onerun
+    debug = args.debug
+    host = args.host[0]
+    interval = args.interval[0]
+    log_file = None
     if args.logfile:
         log_file = args.logfile[0]
-    port        = args.port[0]
+    port = args.port[0]
     password = None
     if args.password:
         password = args.password[0]
-    nosslcheck  = args.nosslcheck
-    targetfile  = args.targetfile[0]
-    threads     = args.threads[0]
-    username    = args.username[0]
-    verbose     = args.verbose
-    vmfile      = args.vmfile[0]
+    nosslcheck = args.nosslcheck
+    targetfile = args.targetfile[0]
+    threads = args.threads[0]
+    username = args.username[0]
+    verbose = args.verbose
+    vmfile = args.vmfile[0]
 
     # Logging settings
     if debug:
@@ -161,9 +160,9 @@ def main():
         log_level = logging.WARNING
 
     if log_file:
-        logging.basicConfig(filename=log_file,format='%(asctime)s %(levelname)s %(message)s',level=log_level)
+        logging.basicConfig(filename=log_file, format='%(asctime)s %(levelname)s %(message)s', level=log_level)
     else:
-        logging.basicConfig(filename=log_file,format='%(asctime)s %(levelname)s %(message)s',level=log_level)
+        logging.basicConfig(filename=log_file, format='%(asctime)s %(levelname)s %(message)s', level=log_level)
     logger = logging.getLogger(__name__)
 
     # Disabling SSL verification if set
@@ -172,28 +171,28 @@ def main():
         logger.debug('Disabling SSL certificate verification.')
         requests.packages.urllib3.disable_warnings()
         import ssl
-        if hasattr(ssl, 'SSLContext'): 
+        if hasattr(ssl, 'SSLContext'):
             ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
             ssl_context.verify_mode = ssl.CERT_NONE
 
     # Getting user password
     if password is None:
         logger.debug('No command line password received, requesting password from user')
-        password = getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (host,username))
+        password = getpass.getpass(prompt='Enter password for vCenter %s for user %s: ' % (host, username))
 
     try:
         si = None
         try:
-            logger.info('Connecting to server %s:%s with username %s' % (host,port,username))
+            logger.info('Connecting to server %s:%s with username %s' % (host, port, username))
             if ssl_context:
                 si = SmartConnect(host=host, user=username, pwd=password, port=int(port), sslContext=ssl_context)
             else:
                 si = SmartConnect(host=host, user=username, pwd=password, port=int(port))
-        except IOError, e:
+        except IOError as e:
             pass
 
         if not si:
-            logger.error('Could not connect to host %s with user %s and specified password' % (host,username))
+            logger.error('Could not connect to host %s with user %s and specified password' % (host, username))
             return 1
 
         logger.debug('Registering disconnect at exit')
@@ -209,10 +208,10 @@ def main():
         # Getting VMs
         vms = []
         content = si.content
-        obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.VirtualMachine],True)
+        obj_view = content.viewManager.CreateContainerView(content.rootFolder, [vim.VirtualMachine], True)
         vm_list = obj_view.view
-        with open(vmfile,'rb') as tasklist:
-            taskreader = csv.reader(tasklist,delimiter=';',quotechar="'")
+        with open(vmfile, 'rb') as tasklist:
+            taskreader = csv.reader(tasklist, delimiter=';', quotechar="'")
             for row in taskreader:
                 logger.debug('Found CSV row: %s' % ','.join(row))
                 # VM Name
@@ -237,11 +236,11 @@ def main():
                     logger.warning('VM %s does not exist, skipping this vm' % cur_vm_name)
 
         # Getting hosts
-        obj_view = content.viewManager.CreateContainerView(content.rootFolder,[vim.HostSystem],True)
+        obj_view = content.viewManager.CreateContainerView(content.rootFolder, [vim.HostSystem], True)
         host_list = obj_view.view
         hosts = []
-        with open(targetfile,'rb') as tasklist:
-            taskreader = csv.reader(tasklist,delimiter=';',quotechar="'")
+        with open(targetfile, 'rb') as tasklist:
+            taskreader = csv.reader(tasklist, delimiter=';', quotechar="'")
             for row in taskreader:
                 logger.debug('Found CSV row: %s' % ','.join(row))
                 # Host Name
@@ -265,9 +264,9 @@ def main():
                     logger.warning('Host %s does not exist, skipping this host' % cur_host_name)
 
         if len(vms) < threads:
-            logger.warning('Amount of threads %s can not be higher than amount of vms: Setting amount of threads to %s' % (threads,len(vms)))
+            logger.warning('Amount of threads %s can not be higher than amount of vms: Setting amount of threads to %s' % (threads, len(vms)))
             threads = len(vms)
-        
+
         # Pool handling
         logger.debug('Setting up pools and threads')
         pool = ThreadPool(threads)
@@ -292,13 +291,13 @@ def main():
             # If not, create new task (selects next VM, selects random host)
             vm = vms[vm_index]
             host = random.choice(hosts)
-            logger.info('Creating vMotion task for VM %s to host %s' % (vm.name,host.name))
-            pool_results.append(pool.apply_async(vm_vmotion_handler,(si,logger,vm,host,interval)))
+            logger.info('Creating vMotion task for VM %s to host %s' % (vm.name, host.name))
+            pool_results.append(pool.apply_async(vm_vmotion_handler, (si, logger, vm, host, interval)))
 
             vm_index += 1
             if vm_index >= len(vms) and onerun:
                 logger.debug('One-run is enabled, all VMs are scheduled to vMotion. Finishing.')
-                wait_for_pool_end(logger,pool,pool_results)
+                wait_for_pool_end(logger, pool, pool_results)
                 run_loop = False
                 break
 
@@ -309,12 +308,12 @@ def main():
     except KeyboardInterrupt:
         logger.info('Received interrupt, finishing running threads and not creating any new migrations')
         if pool is not None and pool_results is not None:
-            wait_for_pool_end(logger,pool,pool_results)
-        
-    except vmodl.MethodFault, e:
+            wait_for_pool_end(logger, pool, pool_results)
+
+    except vmodl.MethodFault as e:
         logger.critical('Caught vmodl fault: %s' % e.msg)
         return 1
-    except Exception, e:
+    except Exception as e:
         logger.critical('Caught exception: %s' % str(e))
         return 1
 
