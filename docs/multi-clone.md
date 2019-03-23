@@ -16,6 +16,7 @@ This script has the following capabilities:
 * Instead of setting the basename, amount, resource pool and folder a CSV can be used
 * Print logging to a log file or stdout
 * Do this in a threaded way
+* Use Linked Clones to speed up cloning
 
 ### Using threads ###
 Deciding on the optimal amount of threads might need a bit of experimentation. Keep certain things in mind:
@@ -29,7 +30,7 @@ A CSV file can be provided with a line for each VM that needs to be created, wit
 ```
 For instance:
 ```
-    "Test01";"New-York";"Compute-Cluster-01";"Development";"IT";"VSAN-DS";"00:50:56:11:11:11";"run.sh";"{'parameter.1':'value.1','parameter.2':'value.2'}"
+    "Test01";"New-York";"Compute-Cluster-01";"Development";"IT";"VSAN-DS";"00:50:56:11:11:11";"run.sh";"{""parameter.1"":""value.1"",""parameter.2"":""value.2""}"
 ```
 ### Post-processing Script ###
 The Post-processing script is run for each VM created if it is provided either as a commandline parameter or as a field in the CSV.
@@ -39,87 +40,90 @@ It is run with the following parameters:
 * virtual machine name: If a power on is disabled and no custom mac address is enabled
 
 ### Usage ###
-    usage: multi-clone.py [-h] [-6] [-b BASENAME] [-c COUNT] [-C CSVFILE]
-                          [--cluster CLUSTER] [-d] [--datacenter DATACENTER]
-                          [--datastore DATATORE] [--folder FOLDER] -H HOST [-i]
-                          [-m] [-l LOGFILE] [-n AMOUNT] [-o PORT] [-p PASSWORD]
-                          [-P] [--resource-pool RESOURCE_POOL] [-s POST_SCRIPT]
-                          [-S] -t TEMPLATE [-T THREADS] -u USERNAME [-v]
-                          [-w MAXWAIT]
-
-    Deploy a template into multiple VM"s. You can get information returned with
-    the name of the virtual machine created and it's main mac and ip address.
-    Either in IPv4 or IPv6 format. You can specify which folder and/or resource
-    pool the clone should be placed in. Verbose and debug output can either be
-    send to stdout, or saved to a log file. A post-script can be specified for
-    post-processing. And it can all be done in a number of parallel threads you
-    specify. The script also provides the ability to use a CSV for a lot of it
-    settings and if you want to specify the mac address of the clones (usefull for
-    DHCP/PXE configuration).
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -6, --six             Get IPv6 address for VMs instead of IPv4
-      -b BASENAME, --basename BASENAME
-                            Basename of the newly deployed VMs
-      -c COUNT, --count COUNT
-                            Starting count, the name of the first VM deployed will
-                            be <basename>-<count>, the second will be
-                            <basename>-<count+1> (default = 1)
-      -C CSVFILE, --csv CSVFILE
-                            An optional CSV overwritting the basename and count.
-                            For each line, a clone will be created. A line consits
-                            of the following fields, fields inside <> are
-                            mandatory, fields with [] are not: "<Clone
-                            name>";"[Datacenter]";"[Cluster]";"[Resouce
-                            Pool]";"[Folder]";"[Datastore]";"[MAC Address
-                            ]";"[Post-processing Script]";"[Advanced VM Parameters
-                            in JSON format]"
-      --cluster CLUSTER     The cluster in which the new VMs should reside
-                            (default = same cluster as source virtual machine
-      -d, --debug           Enable debug output
-      --datacenter DATACENTER
-                            The datacenter in which the new VMs should reside
-                            (default = same datacenter as source virtual machine
-      --datastore DATATORE  The datastore in which the new VMs should reside
-                            (default = same datastore as source virtual machine
-      --folder FOLDER       The folder in which the new VMs should reside (default
-                            = same folder as source virtual machine)
-      -H HOST, --host HOST  The vCenter or ESXi host to connect to
-      -i, --print-ips       Enable IP output
-      -m, --print-macs      Enable MAC output
-      -l LOGFILE, --log-file LOGFILE
-                            File to log to (default = stdout)
-      -n AMOUNT, --number AMOUNT
-                            Amount of VMs to deploy (default = 1)
-      -o PORT, --port PORT  Server port to connect to (default = 443)
-      -p PASSWORD, --password PASSWORD
-                            The password with which to connect to the host. If not
-                            specified, the user is prompted at runtime for a
-                            password
-      -P, --disable-power-on
-                            Disable power on of cloned VMs
-      --resource-pool RESOURCE_POOL
-                            The resource pool in which the new VMs should reside,
-                            (default = Resources, the root resource pool)
-      -s POST_SCRIPT, --post-script POST_SCRIPT
-                            Script to be called after each VM is created and
-                            booted. Arguments passed: name mac-address ip-address
-      -S, --disable-SSL-certificate-verification
-                            Disable SSL certificate verification on connect
-      -t TEMPLATE, --template TEMPLATE
-                            Template to deploy
-      -T THREADS, --threads THREADS
-                            Amount of threads to use. Choose the amount of threads
-                            with the speed of your datastore in mind, each thread
-                            starts the creation of a virtual machine. (default =
-                            1)
-      -u USERNAME, --user USERNAME
-                            The username with which to connect to the host
-      -v, --verbose         Enable verbose output
-      -w MAXWAIT, --wait-max MAXWAIT
-                            Maximum amount of seconds to wait when gathering
-                            information (default = 120)
+        usage: multi-clone.py [-h] [-6] [-b BASENAME] [-c COUNT] [-C CSVFILE]
+                              [--cluster CLUSTER] [-d] [--datacenter DATACENTER]
+                              [--datastore DATASTORE] [--folder FOLDER] -H HOST [-i]
+                              [-m] [-l LOGFILE] [-L] [--snapshot SNAPSHOT] [-n AMOUNT]
+                              [-o PORT] [-p PASSWORD] [-P]
+                              [--resource-pool RESOURCE_POOL] [-s POST_SCRIPT] [-S] -t
+                              TEMPLATE [-T THREADS] -u USERNAME [-v] [-w MAXWAIT]
+        
+        Deploy a template into multiple VM's. You can get information returned with
+        the name of the virtual machine created and it's main mac and ip address.
+        Either in IPv4 or IPv6 format. You can specify which folder and/or resource
+        pool the clone should be placed in. Verbose and debug output can either be
+        send to stdout, or saved to a log file. A post-script can be specified for
+        post-processing. And it can all be done in a number of parallel threads you
+        specify. The script also provides the ability to use a CSV for a lot of it
+        settings and if you want to specify the mac address of the clones (usefull for
+        DHCP/PXE configuration).
+        
+        optional arguments:
+          -h, --help            show this help message and exit
+          -6, --six             Get IPv6 address for VMs instead of IPv4
+          -b BASENAME, --basename BASENAME
+                                Basename of the newly deployed VMs
+          -c COUNT, --count COUNT
+                                Starting count, the name of the first VM deployed will
+                                be <basename>-<count>, the second will be
+                                <basename>-<count+1> (default = 1)
+          -C CSVFILE, --csv CSVFILE
+                                An optional CSV overwritting the basename and count.
+                                For each line, a clone will be created. A line consits
+                                of the following fields, fields inside <> are
+                                mandatory, fields with [] are not: "<Clone
+                                name>";"[Datacenter]";"[Cluster]";"[Resouce
+                                Pool]";"[Folder]";"[Datastore]";"[MAC Address
+                                ]";"[Post-processing Script]";"[Advanced VM Parameters
+                                in JSON format]"
+          --cluster CLUSTER     The cluster in which the new VMs should reside
+                                (default = same cluster as source virtual machine)
+          -d, --debug           Enable debug output
+          --datacenter DATACENTER
+                                The datacenter in which the new VMs should reside
+                                (default = same datacenter as source virtual machine)
+          --datastore DATASTORE
+                                The datastore in which the new VMs should reside
+                                (default = same datastore as source virtual machine)
+          --folder FOLDER       The folder in which the new VMs should reside (default
+                                = same folder as source virtual machine)
+          -H HOST, --host HOST  The vCenter or ESXi host to connect to
+          -i, --print-ips       Enable IP output
+          -m, --print-macs      Enable MAC output
+          -l LOGFILE, --log-file LOGFILE
+                                File to log to (default = stdout)
+          -L, --linked          Enable linked cloning
+          --snapshot SNAPSHOT   Snapshot to be used for linked cloning
+          -n AMOUNT, --number AMOUNT
+                                Amount of VMs to deploy (default = 1)
+          -o PORT, --port PORT  Server port to connect to (default = 443)
+          -p PASSWORD, --password PASSWORD
+                                The password with which to connect to the host. If not
+                                specified, the user is prompted at runtime for a
+                                password
+          -P, --disable-power-on
+                                Disable power on of cloned VMs
+          --resource-pool RESOURCE_POOL
+                                The resource pool in which the new VMs should reside,
+                                (default = Resources, the root resource pool)
+          -s POST_SCRIPT, --post-script POST_SCRIPT
+                                Script to be called after each VM is created and
+                                booted. Arguments passed: name mac-address ip-address
+          -S, --disable-SSL-certificate-verification
+                                Disable SSL certificate verification on connect
+          -t TEMPLATE, --template TEMPLATE
+                                Template to deploy
+          -T THREADS, --threads THREADS
+                                Amount of threads to use. Choose the amount of threads
+                                with the speed of your datastore in mind, each thread
+                                starts the creation of a virtual machine. (default =
+                                1)
+          -u USERNAME, --user USERNAME
+                                The username with which to connect to the host
+          -v, --verbose         Enable verbose output
+          -w MAXWAIT, --wait-max MAXWAIT
+                                Maximum amount of seconds to wait when gathering
+                                information (default = 120)
 
 ### Issues and feature requests ###
 Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere-Python/issues) of the repository to post issues and feature requests
@@ -148,3 +152,4 @@ Feel free to use the [Github issue tracker](https://github.com/pdellaert/vSphere
     * Provisioning
       * Clone virtual machine
       * Deploy from template
+

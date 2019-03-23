@@ -14,6 +14,7 @@ This script has the following capabilities:
     * Instead of setting the basename, amount, resource pool and folder a CSV can be used
     * Print logging to a log file or stdout
     * Do this in a threaded way
+    * Use linked clones to speed up cloning
 
 --- Using threads ---
 Deciding on the optimal amount of threads might need a bit of experimentation. Keep certain things in mind:
@@ -59,7 +60,7 @@ import requests
 import subprocess
 
 from time import sleep
-from pyVim.connect import SmartConnect, Disconnect
+from pyVim.connect import SmartConnectNoSSL, Disconnect
 from pyVmomi import vim, vmodl
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -74,15 +75,17 @@ def get_args():
     parser.add_argument('-b', '--basename', nargs=1, required=False, help='Basename of the newly deployed VMs', dest='basename', type=str)
     parser.add_argument('-c', '--count', nargs=1, required=False, help='Starting count, the name of the first VM deployed will be <basename>-<count>, the second will be <basename>-<count+1> (default = 1)', dest='count', type=int, default=[1])
     parser.add_argument('-C', '--csv', nargs=1, required=False, help='An optional CSV overwritting the basename and count. For each line, a clone will be created. A line consits of the following fields, fields inside <> are mandatory, fields with [] are not: "<Clone name>";"[Datacenter]";"[Cluster]";"[Resouce Pool]";"[Folder]";"[Datastore]";"[MAC Address]";"[Post-processing Script]";"[Advanced VM Parameters in JSON format]"', dest='csvfile', type=str)
-    parser.add_argument('--cluster', nargs=1, required=False, help='The cluster in which the new VMs should reside (default = same cluster as source virtual machine', dest='cluster', type=str)
+    parser.add_argument('--cluster', nargs=1, required=False, help='The cluster in which the new VMs should reside (default = same cluster as source virtual machine)', dest='cluster', type=str)
     parser.add_argument('-d', '--debug', required=False, help='Enable debug output', dest='debug', action='store_true')
-    parser.add_argument('--datacenter', nargs=1, required=False, help='The datacenter in which the new VMs should reside (default = same datacenter as source virtual machine', dest='datacenter', type=str)
-    parser.add_argument('--datastore', nargs=1, required=False, help='The datastore in which the new VMs should reside (default = same datastore as source virtual machine', dest='datastore', type=str)
+    parser.add_argument('--datacenter', nargs=1, required=False, help='The datacenter in which the new VMs should reside (default = same datacenter as source virtual machine)', dest='datacenter', type=str)
+    parser.add_argument('--datastore', nargs=1, required=False, help='The datastore in which the new VMs should reside (default = same datastore as source virtual machine)', dest='datastore', type=str)
     parser.add_argument('--folder', nargs=1, required=False, help='The folder in which the new VMs should reside (default = same folder as source virtual machine)', dest='folder', type=str)
     parser.add_argument('-H', '--host', nargs=1, required=True, help='The vCenter or ESXi host to connect to', dest='host', type=str)
     parser.add_argument('-i', '--print-ips', required=False, help='Enable IP output', dest='ips', action='store_true')
     parser.add_argument('-m', '--print-macs', required=False, help='Enable MAC output', dest='macs', action='store_true')
     parser.add_argument('-l', '--log-file', nargs=1, required=False, help='File to log to (default = stdout)', dest='logfile', type=str)
+    parser.add_argument('-L', '--linked', required=False, help='Enable linked cloning', dest='linked', action='store_true')
+    parser.add_argument('--snapshot', required=False, help='Snapshot to be used for linked cloning', dest='snapshot', type=str)
     parser.add_argument('-n', '--number', nargs=1, required=False, help='Amount of VMs to deploy (default = 1)', dest='amount', type=int, default=[1])
     parser.add_argument('-o', '--port', nargs=1, required=False, help='Server port to connect to (default = 443)', dest='port', type=int, default=[443])
     parser.add_argument('-p', '--password', nargs=1, required=False, help='The password with which to connect to the host. If not specified, the user is prompted at runtime for a password', dest='password', type=str)
@@ -201,6 +204,16 @@ def run_post_script(logger, post_script, vm, mac_ip, custom_mac):
     return retcode
 
 
+def get_snapshots_by_name_recursively(snapshots, snapname):
+    snap_obj = []
+    for snapshot in snapshots:
+        if snapshot.name == snapname:
+            snap_obj.append(snapshot)
+        else:
+            snap_obj = snap_obj + get_snapshots_by_name_recursively(snapshot.childSnapshotList, snapname)
+    return snap_obj
+
+
 def vm_clone_handler_wrapper(args):
     """
     Wrapping arround vm_clone_handler
@@ -209,7 +222,7 @@ def vm_clone_handler_wrapper(args):
     return vm_clone_handler(*args)
 
 
-def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resource_pool_name, folder_name, datastore_name, custom_mac, ipv6, maxwait, post_script, power_on, print_ips, print_macs, template, template_vm, mac_ip_pool, mac_ip_pool_results, adv_parameters):
+def vm_clone_handler(si, logger, linked, vm_name, datacenter_name, cluster_name, resource_pool_name, folder_name, datastore_name, custom_mac, ipv6, maxwait, post_script, power_on, print_ips, print_macs, template, template_vm, template_snapshot, mac_ip_pool, mac_ip_pool_results, adv_parameters):
     """
     Will handle the thread handling to clone a virtual machine and run post processing
     """
@@ -293,9 +306,14 @@ def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resourc
     if datastore:
         logger.debug('THREAD %s - Datastore found, using' % vm_name)
         relocate_spec.datastore = datastore
+    if linked:
+        logger.debug('THREAD %s - Linked clone enabled' % vm_name)
+        relocate_spec.diskMoveType = vim.vm.RelocateSpec.DiskMoveOptions.createNewChildDiskBacking
 
     logger.debug('THREAD %s - Creating clone spec' % vm_name)
     clone_spec = vim.vm.CloneSpec(powerOn=False, template=False, location=relocate_spec)
+    if linked:
+        clone_spec.snapshot = template_snapshot[0].snapshot
 
     if find_obj(si, logger, vm_name, [vim.VirtualMachine], True):
         logger.warning('THREAD %s - Virtual machine already exists, not creating' % vm_name)
@@ -325,8 +343,8 @@ def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resourc
                 logger.info('THREAD %s - Cloning task has quit with cancelation' % vm_name)
             run_loop = False
             break
-        logger.debug('THREAD %s - Sleeping 10 seconds for new check' % vm_name)
-        sleep(10)
+        logger.debug('THREAD %s - Sleeping 2 seconds for new check' % vm_name)
+        sleep(2)
 
     if vm and custom_mac is not None and custom_mac is not '':
         vm_ethernet = None
@@ -363,7 +381,7 @@ def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resourc
                         logger.info('THREAD %s - MAC address change has quit with cancelation' % vm_name)
                     run_loop = False
                     break
-                sleep(5)
+                sleep(2)
 
     if vm and adv_parameters is not None and adv_parameters is not '':
         logger.info('THREAD %s - Setting advanced parameters' % vm_name)
@@ -392,7 +410,7 @@ def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resourc
                     logger.info('THREAD %s - Applying advanced parameters has quit with cancelation' % vm_name)
                 run_loop = False
                 break
-            sleep(5)
+            sleep(2)
 
     if vm and power_on:
         logger.info('THREAD %s - Powering on VM. This might take a couple of seconds' % vm_name)
@@ -411,7 +429,7 @@ def vm_clone_handler(si, logger, vm_name, datacenter_name, cluster_name, resourc
                     logger.info('THREAD %s - Power on has quit with cancelation' % vm_name)
                 run_loop = False
                 break
-            sleep(5)
+            sleep(2)
 
     if vm and power_on and (post_script or print_ips or print_macs):
         logger.debug('THREAD %s - Creating mac, ip and post-script processing thread' % vm_name)
@@ -501,6 +519,10 @@ def main():
     username = args.username[0]
     verbose = args.verbose
     maxwait = args.maxwait[0]
+    linked = args.linked
+    snapshot = None
+    if args.snapshot:
+       snapshot = args.snapshot
 
     # Logging settings
     if debug:
@@ -535,10 +557,10 @@ def main():
         si = None
         try:
             logger.info('Connecting to server %s:%s with username %s' % (host, port, username))
-            if ssl_context:
-                si = SmartConnect(host=host, user=username, pwd=password, port=int(port), sslContext=ssl_context)
-            else:
-                si = SmartConnect(host=host, user=username, pwd=password, port=int(port))
+            #if ssl_context:
+            #    si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port), sslContext=ssl_context)
+            #else:
+            si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port))
         except IOError as e:
             pass
 
@@ -556,6 +578,18 @@ def main():
             logger.error('Unable to find template %s' % template)
             return 1
         logger.info('Template %s found' % template)
+
+        # Finding the snapshot if linked
+        template_snapshot = None
+        if linked and not snapshot:
+            logger.error('When linked cloning is enabled, a snapshot has to be provided.')
+            return 1
+        elif linked:
+            template_snapshot = get_snapshots_by_name_recursively(snapshots=template_vm.snapshot.rootSnapshotList, snapname=snapshot)
+            if len(template_snapshot) != 1:
+                logger.error('Snapshot %s not found.' % snapshot)
+                return 1
+            logger.info('Snapshot %s found.' % snapshot)
 
         # Pool handling
         logger.debug('Setting up pools and threads')
@@ -576,7 +610,7 @@ def main():
 
             vm_names.sort()
             for vm_name in vm_names:
-                vm_specs.append((si, logger, vm_name, datacenter_name, cluster_name, resource_pool_name, folder_name, datastore_name, None, ipv6, maxwait, post_script, power_on, print_ips, print_macs, template, template_vm, mac_ip_pool, mac_ip_pool_results, None))
+                vm_specs.append((si, logger, linked, vm_name, datacenter_name, cluster_name, resource_pool_name, folder_name, datastore_name, None, ipv6, maxwait, post_script, power_on, print_ips, print_macs, template, template_vm, template_snapshot, mac_ip_pool, mac_ip_pool_results, None))
         else:
             # CSV fields:
             # VM Name, Resource Pool, Folder, MAC Address, Post Script
@@ -638,7 +672,7 @@ def main():
                         cur_adv_parameters = row[8]
 
                     # Creating VM
-                    vm_specs.append((si, logger, cur_vm_name, cur_datacenter_name, cur_cluster_name, cur_resource_pool_name, cur_folder_name, cur_datastore_name, custom_mac, ipv6, maxwait, cur_post_script, power_on, print_ips, print_macs, template, template_vm, mac_ip_pool, mac_ip_pool_results, cur_adv_parameters))
+                    vm_specs.append((si, logger, linked, cur_vm_name, cur_datacenter_name, cur_cluster_name, cur_resource_pool_name, cur_folder_name, cur_datastore_name, custom_mac, ipv6, maxwait, cur_post_script, power_on, print_ips, print_macs, template, template_vm, template_snapshot, mac_ip_pool, mac_ip_pool_results, cur_adv_parameters))
 
         logger.debug('Running virtual machine clone pool')
         pool.map(vm_clone_handler_wrapper, vm_specs)
