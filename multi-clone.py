@@ -47,7 +47,10 @@ Philippe Dellaert <philippe@dellaert.org>
 https://raw.github.com/pdellaert/vSphere-Python/master/LICENSE.md
 
 """
+from __future__ import print_function
 
+from builtins import str
+from builtins import range
 import argparse
 import atexit
 import csv
@@ -56,11 +59,10 @@ import json
 import logging
 import os.path
 import re
-import requests
 import subprocess
 
 from time import sleep
-from pyVim.connect import SmartConnectNoSSL, Disconnect
+from pyVim.connect import SmartConnect, SmartConnectNoSSL, Disconnect
 from pyVmomi import vim, vmodl
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -388,7 +390,7 @@ def vm_clone_handler(si, logger, linked, vm_name, datacenter_name, cluster_name,
         logger.debug('THREAD %s - Loading JSON data: %s' % (vm_name, adv_parameters))
         adv_parameters_dict = json.loads(adv_parameters)
         vm_option_values = []
-        for key, value in adv_parameters_dict.iteritems():
+        for key, value in adv_parameters_dict.items():
             logger.debug('THREAD %s - Creating option value for key %s and value %s' % (vm_name, key, value))
             vm_option_values.append(vim.option.OptionValue(key=key, value=value))
         logger.debug('THREAD %s - Creating of config spec for VM' % vm_name)
@@ -513,7 +515,7 @@ def main():
     resource_pool_name = None
     if args.resource_pool:
         resource_pool_name = args.resource_pool[0]
-    nosslcheck = args.nosslcheck
+#    nosslcheck = args.nosslcheck
     template = args.template[0]
     threads = args.threads[0]
     username = args.username[0]
@@ -538,16 +540,6 @@ def main():
         logging.basicConfig(filename=log_file, format='%(asctime)s %(levelname)s %(message)s', level=log_level)
     logger = logging.getLogger(__name__)
 
-    # Disabling SSL verification if set
-    ssl_context = None
-    if nosslcheck:
-        logger.debug('Disabling SSL certificate verification.')
-        requests.packages.urllib3.disable_warnings()
-        import ssl
-        if hasattr(ssl, 'SSLContext'):
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-            ssl_context.verify_mode = ssl.CERT_NONE
-
     # Getting user password
     if password is None:
         logger.debug('No command line password received, requesting password from user')
@@ -557,10 +549,10 @@ def main():
         si = None
         try:
             logger.info('Connecting to server %s:%s with username %s' % (host, port, username))
-            #if ssl_context:
-            #    si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port), sslContext=ssl_context)
-            #else:
-            si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port))
+            if nosslcheck:
+                si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port))
+            else:
+                si = SmartConnect(host=host, user=username, pwd=password, port=int(port))
         except IOError as e:
             pass
 

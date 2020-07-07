@@ -28,6 +28,7 @@ https://raw.github.com/pdellaert/vSphere-Python/master/LICENSE.md
 
 """
 
+from builtins import str
 import argparse
 import atexit
 import csv
@@ -35,10 +36,9 @@ import getpass
 import logging
 import os.path
 import random
-import requests
 
 from time import sleep
-from pyVim.connect import SmartConnect, Disconnect
+from pyVim.connect import SmartConnect, SmartConnectNoSSL, Disconnect
 from pyVmomi import vim, vmodl
 from multiprocessing.dummy import Pool as ThreadPool
 
@@ -165,16 +165,6 @@ def main():
         logging.basicConfig(filename=log_file, format='%(asctime)s %(levelname)s %(message)s', level=log_level)
     logger = logging.getLogger(__name__)
 
-    # Disabling SSL verification if set
-    ssl_context = None
-    if nosslcheck:
-        logger.debug('Disabling SSL certificate verification.')
-        requests.packages.urllib3.disable_warnings()
-        import ssl
-        if hasattr(ssl, 'SSLContext'):
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-            ssl_context.verify_mode = ssl.CERT_NONE
-
     # Getting user password
     if password is None:
         logger.debug('No command line password received, requesting password from user')
@@ -184,8 +174,8 @@ def main():
         si = None
         try:
             logger.info('Connecting to server %s:%s with username %s' % (host, port, username))
-            if ssl_context:
-                si = SmartConnect(host=host, user=username, pwd=password, port=int(port), sslContext=ssl_context)
+            if nosslcheck:
+                si = SmartConnectNoSSL(host=host, user=username, pwd=password, port=int(port))
             else:
                 si = SmartConnect(host=host, user=username, pwd=password, port=int(port))
         except IOError as e:
