@@ -515,7 +515,7 @@ def main():
     resource_pool_name = None
     if args.resource_pool:
         resource_pool_name = args.resource_pool[0]
-#    nosslcheck = args.nosslcheck
+    nosslcheck = args.nosslcheck
     template = args.template[0]
     threads = args.threads[0]
     username = args.username[0]
