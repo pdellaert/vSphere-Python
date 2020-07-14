@@ -1,4 +1,4 @@
-Copyright (c) 2013-2014, Philippe Dellaert
+Copyright (c) 2013-2020, Philippe Dellaert
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

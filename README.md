@@ -31,6 +31,13 @@ This script has the following capabilities:
 
 Check [the random-vmotion.py documentation](https://github.com/pdellaert/vSphere-Python/blob/master/docs/random-vmotion.md) for more information on the options and capabilities.
 
+# fetch-host-mor.py #
+fetch-host-mor is a Python script which will provide the MOR details of one or all ESXi hosts in a vCenter environment.
+
+This script has the following capabilities:
+* Print out the Name, HW UUID and MOR for one or all ESXi hosts in a vCenter server.
+* Print as a nice table, or as JSON
+
 # pysphere-multi-clone.py #
 This script can be used to deploy multiple VMs from a template in an automatic way, with the possibility to add a post script. The post script gets two parameters: the VM name and possibly the IP address (either IPv4 or IPv6, depending on the parameters)
 
